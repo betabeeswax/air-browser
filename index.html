@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIR Browser</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>A</text></svg>" />
+</head>
+<body class="dark">
+  <div id="browser-chrome">
+    <div id="tab-bar">
+      <div id="tabs-container"></div>
+      <button id="new-tab-btn" title="New Tab">+</button>
+      <div class="spacer"></div>
+      <div id="profile-area">
+        <select id="profile-select" title="Switch Profile"></select>
+        <button id="profile-btn" title="Profile Settings">P</button>
+      </div>
+    </div>
+    <div id="nav-bar">
+      <button id="back-btn" title="Back">&larr;</button>
+      <button id="forward-btn" title="Forward">&rarr;</button>
+      <button id="reload-btn" title="Reload">&#8635;</button>
+      <button id="home-btn" title="Home">Home</button>
+      <div id="address-bar-container">
+        <select id="search-engine-select" title="Search Engine">
+          <option value="bing">Bing</option>
+          <option value="google">Google</option>
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="brave">Brave</option>
+        </select>
+        <input type="text" id="address-bar" placeholder="Search or enter address..." autocomplete="off" />
+        <button id="go-btn">Go</button>
+      </div>
+      <button id="bookmarks-btn" title="Bookmarks">&#9733;</button>
+      <button id="tab-groups-btn" title="Tab Groups">Tabs</button>
+      <button id="menu-btn" title="Menu">&#9776;</button>
+    </div>
+  </div>
+  <div id="content-area">
+    <div id="start-page" class="page active">
+      <div class="start-header">
+        <h1>AIR Browser</h1>
+        <p class="subtitle">Your clean, private browser</p>
+      </div>
+      <div id="widgets-container" class="widgets-grid"></div>
+      <div class="start-actions">
+        <button id="add-widget-btn">+ Add Widget</button>
+        <button id="customize-btn">Customize Start Page</button>
+      </div>
+    </div>
+    <div id="browser-view" class="page">
+      <iframe id="web-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+    </div>
+  </div>
+  <div id="side-panel" class="hidden">
+    <div class="side-header">
+      <h3 id="side-title">Panel</h3>
+      <button id="close-side">X</button>
+    </div>
+    <div id="side-content"></div>
+  </div>
+  <div id="modal-overlay" class="hidden">
+    <div id="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Modal</h3>
+        <button id="close-modal">X</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast" class="hidden"></div>
+  <script src="js/storage.js"></script>
+  <script src="js/widgets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
