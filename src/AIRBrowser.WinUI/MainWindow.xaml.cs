@@ -49,7 +49,13 @@ public sealed partial class MainWindow : Window
         try
         {
             Directory.CreateDirectory(ProfileFolder);
-            await web.EnsureCoreWebView2Async();
+            var webViewData = Path.Combine(_root, "WebView2");
+            Directory.CreateDirectory(webViewData);
+            var environmentOptions = new CoreWebView2EnvironmentOptions();
+            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, webViewData, environmentOptions);
+            var controllerOptions = environment.CreateCoreWebView2ControllerOptions();
+            controllerOptions.ProfileName = SafeName(_profile);
+            await web.EnsureCoreWebView2Async(environment, controllerOptions);
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
