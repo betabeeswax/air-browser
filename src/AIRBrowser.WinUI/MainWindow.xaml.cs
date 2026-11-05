@@ -119,7 +119,12 @@ public sealed partial class MainWindow : Window
                     var origin = root.GetProperty("origin").GetString() ?? "";
                     var username = root.GetProperty("username").GetString() ?? "";
                     var password = root.GetProperty("password").GetString() ?? "";
-                    if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri) && originUri.Scheme is "https" or "http" && password.Length > 0)
+                    var senderUri = Uri.TryCreate(message.Source, UriKind.Absolute, out var sourceUri) ? sourceUri : null;
+                    if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri)
+                        && originUri.Scheme is "https" or "http"
+                        && senderUri is not null
+                        && senderUri.GetLeftPart(UriPartial.Authority).Equals(originUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase)
+                        && password.Length > 0)
                         await AskToSavePasswordAsync(originUri.GetLeftPart(UriPartial.Authority), username, password);
                 }
                 catch { }
