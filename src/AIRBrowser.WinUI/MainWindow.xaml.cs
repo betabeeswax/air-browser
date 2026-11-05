@@ -3,9 +3,11 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Windows.System;
-using System.Diagnostics;
 
 namespace AIRBrowser;
 
@@ -13,11 +15,22 @@ public sealed partial class MainWindow : Window
 {
     private readonly string _root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AIR Browser");
     private readonly ObservableCollection<string> _profiles = new() { "Personal", "Work" };
+    private readonly ObservableCollection<string> _groups = new() { "Ungrouped" };
+    private readonly List<TabEntry> _tabs = new();
     private readonly List<Bookmark> _bookmarks = new();
+    private readonly Dictionary<string, PasswordRecord> _passwords = new();
     private string _profile = "Personal";
     private string _engine = "Bing";
     private bool _changingProfile;
+    private bool _changingTabSelection;
+    private bool _changingGroup;
+    private bool _sidebarExpanded = true;
+    private bool _verticalMode;
     private WebView2? ActiveWeb => (BrowserTabs.SelectedItem as TabViewItem)?.Tag as WebView2;
+    private TabEntry? ActiveEntry => _tabs.FirstOrDefault(t => t.Web == ActiveWeb);
+    private string ProfileFolder => Path.Combine(_root, "Profiles", SafeName(_profile));
+    private string PasswordFile => Path.Combine(ProfileFolder, "passwords.bin");
+    private static string SafeName(string value) => string.Concat(value.Select(c => char.IsLetterOrDigit(c) || c == '-' ? c : '_'));
 
     public MainWindow()
     {
@@ -29,12 +42,14 @@ public sealed partial class MainWindow : Window
         ProfilePicker.SelectedIndex = 0;
         SearchEnginePicker.ItemsSource = new[] { "Bing", "Google", "DuckDuckGo" };
         SearchEnginePicker.SelectedIndex = 0;
+        TabGroupPicker.ItemsSource = _groups;
         LoadBookmarks();
+        LoadGroups();
+        LoadPasswords();
+        RefreshVerticalTabs();
+        SetTabOrientation(false);
         _ = AddTabAsync();
     }
-
-    private string ProfileFolder => Path.Combine(_root, "Profiles", SafeName(_profile));
-    private static string SafeName(string value) => string.Concat(value.Select(c => char.IsLetterOrDigit(c) || c == '-' ? c : '_'));
 
     private async Task AddTabAsync(string? address = null)
     {
@@ -42,43 +57,80 @@ public sealed partial class MainWindow : Window
         var host = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         var web = new WebView2();
         host.Children.Add(web);
-        tab.Content = host;
+        tab.Content = new Grid { Height = 0, MinHeight = 0 };
         tab.Tag = web;
+        var entry = new TabEntry(tab, web, host);
+        _tabs.Add(entry);
         BrowserTabs.TabItems.Add(tab);
         BrowserTabs.SelectedItem = tab;
+        ShowEntry(entry);
+        RefreshVerticalTabs();
         try
         {
             Directory.CreateDirectory(ProfileFolder);
             var webViewData = Path.Combine(_root, "WebView2");
             Directory.CreateDirectory(webViewData);
-            var environmentOptions = new CoreWebView2EnvironmentOptions();
-            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, webViewData, environmentOptions);
+            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, webViewData, new CoreWebView2EnvironmentOptions());
             var controllerOptions = environment.CreateCoreWebView2ControllerOptions();
             controllerOptions.ProfileName = SafeName(_profile);
             await web.EnsureCoreWebView2Async(environment, controllerOptions);
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
+
             web.CoreWebView2.DownloadStarting += (_, download) =>
             {
                 var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
                 Directory.CreateDirectory(downloads);
-                var safeName = Path.GetFileName(download.ResultFilePath);
-                if (string.IsNullOrWhiteSpace(safeName)) safeName = "AIR-Download";
-                download.ResultFilePath = Path.Combine(downloads, safeName);
-                StatusText.Text = "Downloading " + safeName;
+                var fileName = Path.GetFileName(download.ResultFilePath);
+                if (string.IsNullOrWhiteSpace(fileName)) fileName = "AIR-Download";
+                download.ResultFilePath = Path.Combine(downloads, fileName);
+                StatusText.Text = "Downloading " + fileName;
                 download.DownloadOperation.StateChanged += (_, _) =>
                 {
                     if (download.DownloadOperation.State == CoreWebView2DownloadState.Completed)
-                        StatusText.Text = "Download complete: " + safeName;
+                        StatusText.Text = "Download complete: " + fileName;
                     else if (download.DownloadOperation.State == CoreWebView2DownloadState.Interrupted)
-                        StatusText.Text = "Download interrupted: " + safeName;
+                        StatusText.Text = "Download interrupted: " + fileName;
                 };
             };
+
+            await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("""
+                document.addEventListener('submit', function(event) {
+                    const form = event.target;
+                    const password = form.querySelector('input[type="password"]');
+                    if (!password || !password.value || !window.chrome?.webview) return;
+                    const username = form.querySelector('input[autocomplete="username"],input[type="email"],input[type="text"]');
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        type: 'air-save-password',
+                        origin: location.origin,
+                        username: username?.value || '',
+                        password: password.value
+                    }));
+                }, true);
+                """);
+            web.CoreWebView2.WebMessageReceived += async (_, message) =>
+            {
+                try
+                {
+                    using var data = JsonDocument.Parse(message.TryGetWebMessageAsString());
+                    var root = data.RootElement;
+                    if (root.GetProperty("type").GetString() != "air-save-password") return;
+                    var origin = root.GetProperty("origin").GetString() ?? "";
+                    var username = root.GetProperty("username").GetString() ?? "";
+                    var password = root.GetProperty("password").GetString() ?? "";
+                    if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri) && originUri.Scheme is "https" or "http" && password.Length > 0)
+                        await AskToSavePasswordAsync(originUri.GetLeftPart(UriPartial.Authority), username, password);
+                }
+                catch { }
+            };
+
             Grid? startPage = null;
             web.CoreWebView2.DocumentTitleChanged += (_, _) =>
             {
-                tab.Header = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
+                var title = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
+                tab.Header = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
+                RefreshVerticalTabs();
             };
             web.CoreWebView2.NavigationStarting += (_, e) =>
             {
@@ -90,26 +142,67 @@ public sealed partial class MainWindow : Window
                 if (ActiveWeb == web) AddressBox.Text = e.Uri;
                 StatusText.Text = "Loading " + e.Uri;
             };
-            web.CoreWebView2.NavigationCompleted += (_, e) =>
+            web.CoreWebView2.NavigationCompleted += async (_, e) =>
             {
                 StatusText.Text = e.IsSuccess ? "Ready" : "This page could not be loaded";
                 UpdateNavigationButtons();
                 if (Uri.TryCreate(web.Source?.ToString(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+                {
                     SaveHistory(uri.ToString(), tab.Header?.ToString() ?? uri.Host);
+                    if (_savedTabGroups.TryGetValue(uri.ToString(), out var group) && _groups.Contains(group))
+                    {
+                        entry.Group = group;
+                        UpdateTabHeader(entry);
+                    }
+                    await TryAutofillAsync(web, uri);
+                }
             };
             web.CoreWebView2.NewWindowRequested += (_, e) =>
             {
                 e.Handled = true;
-                AddTabAsync(e.Uri);
+                _ = AddTabAsync(e.Uri);
             };
             startPage = ShowStartPage(host);
-            if (!string.IsNullOrWhiteSpace(address)) Navigate(address);
+            if (!string.IsNullOrWhiteSpace(address)) NavigateEntry(entry, address);
         }
         catch (Exception ex)
         {
             StatusText.Text = "WebView2 could not start: " + ex.Message;
             ShowStartPage(host);
         }
+    }
+
+    private void ShowEntry(TabEntry? entry)
+    {
+        ContentHost.Children.Clear();
+        if (entry is not null) ContentHost.Children.Add(entry.Host);
+        UpdateNavigationButtons();
+        if (entry?.Web.Source is not null) AddressBox.Text = entry.Web.Source.ToString();
+        else AddressBox.Text = "";
+        _changingGroup = true;
+        TabGroupPicker.SelectedItem = entry?.Group ?? "Ungrouped";
+        _changingGroup = false;
+    }
+
+    private void RefreshVerticalTabs()
+    {
+        var selected = ActiveEntry;
+        VerticalTabs.ItemsSource = null;
+        VerticalTabs.ItemsSource = _tabs.Select(t => t.DisplayTitle).ToList();
+        if (selected is not null)
+        {
+            var index = _tabs.IndexOf(selected);
+            if (index >= 0) VerticalTabs.SelectedIndex = index;
+        }
+    }
+
+    private void UpdateTabHeader(TabEntry entry)
+    {
+        var title = entry.Web.CoreWebView2?.DocumentTitle;
+        if (string.IsNullOrWhiteSpace(title)) title = "New tab";
+        entry.Tab.Header = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
+        RefreshVerticalTabs();
+        SaveGroups();
     }
 
     private Grid ShowStartPage(Grid host)
@@ -119,20 +212,29 @@ public sealed partial class MainWindow : Window
         stack.Children.Add(new TextBlock { Text = "Welcome to AIR", FontSize = 38, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) });
         stack.Children.Add(new TextBlock { Text = "A calmer way to browse.", FontSize = 17, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 150, 174, 205)) });
         var search = new TextBox { PlaceholderText = "Search the web or enter an address", Height = 48, FontSize = 16 };
-        search.KeyDown += (_, e) => { if (e.Key == VirtualKey.Enter) { AddressBox.Text = search.Text; Navigate(search.Text); } };
+        search.KeyDown += (_, e) => { if (e.Key == VirtualKey.Enter) Navigate(search.Text); };
         stack.Children.Add(search);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var bookmarkButton = new Button { Content = "☆ Open bookmarks" };
+        bookmarkButton.Click += ShowBookmarks_Click;
+        var passwordButton = new Button { Content = "🔑 Password manager" };
+        passwordButton.Click += ShowPasswords_Click;
+        actions.Children.Add(bookmarkButton);
+        actions.Children.Add(passwordButton);
+        stack.Children.Add(actions);
         var tiles = new Grid { ColumnSpacing = 12 };
         for (int i = 0; i < 3; i++) tiles.ColumnDefinitions.Add(new ColumnDefinition());
-        string[] names = { "Bookmarks", "Weather widget", "Recent pages" };
-        string[] details = { "Your saved websites appear here.", "Weather widget can be enabled in Start Page settings.", "Your browsing history stays in this profile." };
+        string[] names = { "Bookmarks", "Tab groups", "Private by profile" };
+        string[] details = { "Save pages with the star button or Ctrl+D.", "Keep related tabs together in named groups.", "Your profile keeps its own browsing history." };
         for (int i = 0; i < names.Length; i++)
         {
-            var card = new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 17, 29, 46)), CornerRadius = new CornerRadius(12), Padding = new Thickness(18), Margin = new Thickness(i == 0 ? 0 : 4, 0, 4, 0) };
+            var card = new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 17, 29, 46)), CornerRadius = new CornerRadius(12), Padding = new Thickness(18), Margin = new Thickness(4, 0, 4, 0) };
             var content = new StackPanel { Spacing = 8 };
             content.Children.Add(new TextBlock { Text = names[i], FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) });
             content.Children.Add(new TextBlock { Text = details[i], TextWrapping = TextWrapping.Wrap, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 150, 174, 205)) });
             card.Child = content;
-            Grid.SetColumn(card, i); tiles.Children.Add(card);
+            Grid.SetColumn(card, i);
+            tiles.Children.Add(card);
         }
         stack.Children.Add(tiles);
         panel.Children.Add(stack);
@@ -148,35 +250,76 @@ public sealed partial class MainWindow : Window
 
     private void Navigate(string input)
     {
-        var web = ActiveWeb;
-        if (web?.CoreWebView2 is null) return;
+        var entry = ActiveEntry;
+        if (entry is not null) NavigateEntry(entry, input);
+    }
+
+    private void NavigateEntry(TabEntry entry, string input)
+    {
+        var web = entry.Web;
+        if (web.CoreWebView2 is null) return;
         var value = input.Trim();
         if (string.IsNullOrWhiteSpace(value)) return;
-        Uri target;
-        if (Uri.TryCreate(value, UriKind.Absolute, out var parsed) && (parsed.Scheme == "http" || parsed.Scheme == "https"))
-            target = parsed;
+        if (Uri.TryCreate(value, UriKind.Absolute, out var parsed) && parsed.Scheme is "http" or "https")
+            web.CoreWebView2.Navigate(parsed.ToString());
         else if (!value.Contains(' ') && value.Contains('.') && Uri.TryCreate("https://" + value, UriKind.Absolute, out parsed))
-            target = parsed;
-        else
-        {
-            web.CoreWebView2.Navigate(SearchUrl(value));
-            return;
-        }
-        web.CoreWebView2.Navigate(target.ToString());
+            web.CoreWebView2.Navigate(parsed.ToString());
+        else web.CoreWebView2.Navigate(SearchUrl(value));
     }
 
     private void NewTab_Click(object sender, RoutedEventArgs e) => _ = AddTabAsync();
     private void BrowserTabs_AddTabButtonClick(TabView sender, object args) => _ = AddTabAsync();
     private void BrowserTabs_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
     {
+        var entry = _tabs.FirstOrDefault(t => t.Tab == args.Tab);
+        if (entry is not null)
+        {
+            _tabs.Remove(entry);
+            if (ContentHost.Children.Contains(entry.Host)) ContentHost.Children.Remove(entry.Host);
+        }
         sender.TabItems.Remove(args.Tab);
         if (sender.TabItems.Count == 0) _ = AddTabAsync();
+        RefreshVerticalTabs();
     }
     private void BrowserTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ActiveWeb?.Source is not null) AddressBox.Text = ActiveWeb.Source.ToString();
-        UpdateNavigationButtons();
+        if (_changingTabSelection) return;
+        ShowEntry(ActiveEntry);
+        RefreshVerticalTabs();
     }
+    private void VerticalTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_changingTabSelection || VerticalTabs.SelectedIndex < 0 || VerticalTabs.SelectedIndex >= _tabs.Count) return;
+        _changingTabSelection = true;
+        BrowserTabs.SelectedItem = _tabs[VerticalTabs.SelectedIndex].Tab;
+        _changingTabSelection = false;
+        ShowEntry(ActiveEntry);
+    }
+    private void HorizontalTabs_Click(object sender, RoutedEventArgs e) => SetTabOrientation(false);
+    private void VerticalTabs_Click(object sender, RoutedEventArgs e) => SetTabOrientation(true);
+    private void SetTabOrientation(bool vertical)
+    {
+        _verticalMode = vertical;
+        BrowserTabs.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
+        VerticalTabs.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
+        SidebarTitle.Text = vertical ? "VERTICAL TABS" : "AIR SIDEBAR";
+        StatusText.Text = vertical ? "Vertical tabs enabled" : "Horizontal tabs enabled";
+    }
+    private void SidebarToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _sidebarExpanded = !_sidebarExpanded;
+        SidebarColumn.Width = new GridLength(_sidebarExpanded ? 210 : 48);
+        SidebarToggle.Content = _sidebarExpanded ? "◀" : "▶";
+        SidebarTitle.Visibility = _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+        GroupLabel.Visibility = _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+        TabGroupPicker.Visibility = _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+        NewGroupButton.Content = _sidebarExpanded ? "＋ Create tab group" : "＋";
+        BookmarksSideButton.Content = _sidebarExpanded ? "☆  Bookmarks" : "☆";
+        PasswordsSideButton.Content = _sidebarExpanded ? "🔑  Passwords" : "🔑";
+        HistorySideButton.Content = _sidebarExpanded ? "◷  History" : "◷";
+        DownloadsSideButton.Content = _sidebarExpanded ? "↓  Downloads" : "↓";
+    }
+
     private void Go_Click(object sender, RoutedEventArgs e) => Navigate(AddressBox.Text);
     private void AddressBox_KeyDown(object sender, KeyRoutedEventArgs e) { if (e.Key == VirtualKey.Enter) Navigate(AddressBox.Text); }
     private void Back_Click(object sender, RoutedEventArgs e) { if (ActiveWeb?.CanGoBack == true) ActiveWeb.GoBack(); }
@@ -197,7 +340,9 @@ public sealed partial class MainWindow : Window
         if (web?.Source is null || web.Source.Scheme is not ("http" or "https")) return;
         var item = new Bookmark(web.Source.ToString(), web.CoreWebView2?.DocumentTitle ?? web.Source.Host);
         if (_bookmarks.Any(b => b.Url == item.Url)) { StatusText.Text = "Already bookmarked"; return; }
-        _bookmarks.Add(item); SaveBookmarks(); StatusText.Text = "Bookmark saved";
+        _bookmarks.Add(item);
+        SaveBookmarks();
+        StatusText.Text = "☆ Bookmark saved";
     }
     private void LoadBookmarks()
     {
@@ -234,7 +379,6 @@ public sealed partial class MainWindow : Window
         list.ItemClick += (_, args) => { var index = list.Items.IndexOf(args.ClickedItem); if (index >= 0) { Navigate(items[index].Url); dialog.Hide(); } };
         await dialog.ShowAsync();
     }
-
     private async void ShowHistory_Click(object sender, RoutedEventArgs e)
     {
         var entries = new List<HistoryEntry>();
@@ -255,7 +399,6 @@ public sealed partial class MainWindow : Window
             StatusText.Text = "Browsing history cleared";
         }
     }
-
     private void ShowDownloads_Click(object sender, RoutedEventArgs e)
     {
         var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
@@ -263,28 +406,179 @@ public sealed partial class MainWindow : Window
         Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
     }
 
+    private async void NewGroup_Click(object sender, RoutedEventArgs e)
+    {
+        var nameBox = new TextBox { PlaceholderText = "Example: School, Shopping, Research", MaxLength = 32 };
+        var dialog = new ContentDialog { Title = "Create a tab group", Content = nameBox, PrimaryButtonText = "Create group", CloseButtonText = "Cancel", XamlRoot = BrowserTabs.XamlRoot, DefaultButton = ContentDialogButton.Primary };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        var name = nameBox.Text.Trim();
+        if (name.Length == 0) return;
+        if (!_groups.Contains(name)) _groups.Add(name);
+        SaveGroups();
+        if (ActiveEntry is not null) AssignGroup(ActiveEntry, name);
+        TabGroupPicker.SelectedItem = name;
+    }
+    private void TabGroupPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_changingGroup || TabGroupPicker.SelectedItem is not string group || ActiveEntry is null) return;
+        AssignGroup(ActiveEntry, group);
+    }
+    private void AssignGroup(TabEntry entry, string group)
+    {
+        entry.Group = group;
+        UpdateTabHeader(entry);
+        if (entry.Web.Source is not null) _savedTabGroups[entry.Web.Source.ToString()] = group;
+        SaveGroups();
+        StatusText.Text = group == "Ungrouped" ? "Tab removed from its group" : "Tab added to " + group;
+    }
+    private readonly Dictionary<string, string> _savedTabGroups = new();
+    private void LoadGroups()
+    {
+        try
+        {
+            var path = Path.Combine(ProfileFolder, "tab-groups.json");
+            if (!File.Exists(path)) return;
+            var state = JsonSerializer.Deserialize<GroupState>(File.ReadAllText(path));
+            if (state is null) return;
+            foreach (var group in state.Groups.Where(g => !string.IsNullOrWhiteSpace(g) && !_groups.Contains(g))) _groups.Add(group);
+            foreach (var pair in state.TabGroups) _savedTabGroups[pair.Key] = pair.Value;
+        }
+        catch { }
+    }
+    private void SaveGroups()
+    {
+        try
+        {
+            Directory.CreateDirectory(ProfileFolder);
+            var state = new GroupState(_groups.Where(g => g != "Ungrouped").ToList(), _savedTabGroups);
+            File.WriteAllText(Path.Combine(ProfileFolder, "tab-groups.json"), JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { }
+    }
+
+    private void LoadPasswords()
+    {
+        try
+        {
+            if (!File.Exists(PasswordFile)) return;
+            var encrypted = File.ReadAllBytes(PasswordFile);
+            var clear = ProtectedData.Unprotect(encrypted, Encoding.UTF8.GetBytes("AIR Browser Passwords v1"), DataProtectionScope.CurrentUser);
+            var records = JsonSerializer.Deserialize<List<PasswordRecord>>(clear) ?? new();
+            foreach (var record in records) _passwords[record.Origin + "|" + record.Username] = record;
+        }
+        catch { _passwords.Clear(); }
+    }
+    private void SavePasswords()
+    {
+        Directory.CreateDirectory(ProfileFolder);
+        var clear = JsonSerializer.SerializeToUtf8Bytes(_passwords.Values.ToList());
+        var encrypted = ProtectedData.Protect(clear, Encoding.UTF8.GetBytes("AIR Browser Passwords v1"), DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(PasswordFile, encrypted);
+    }
+    private async Task AskToSavePasswordAsync(string origin, string username, string password)
+    {
+        var userBox = new TextBox { Header = "Username or email", Text = username };
+        var passBox = new PasswordBox { Header = "Password", Password = password };
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock { Text = "AIR detected a sign-in form. Save this login encrypted on this Windows account?", TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = origin, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(userBox);
+        panel.Children.Add(passBox);
+        var dialog = new ContentDialog { Title = "Save password?", Content = panel, PrimaryButtonText = "Save password", CloseButtonText = "Not now", XamlRoot = BrowserTabs.XamlRoot, DefaultButton = ContentDialogButton.Primary };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        var record = new PasswordRecord(origin, userBox.Text.Trim(), passBox.Password);
+        _passwords[origin + "|" + record.Username] = record;
+        SavePasswords();
+        StatusText.Text = "Password saved encrypted on this PC";
+    }
+    private async Task TryAutofillAsync(WebView2 web, Uri uri)
+    {
+        var record = _passwords.Values.FirstOrDefault(p => p.Origin.Equals(uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase));
+        if (record is null) return;
+        var user = JsonSerializer.Serialize(record.Username);
+        var pass = JsonSerializer.Serialize(record.Password);
+        var script = $"(()=>{{const p=document.querySelector('input[type=password]');if(!p)return;const u=document.querySelector('input[autocomplete=username],input[type=email],input[type=text]');if(u&&!u.value){{u.value={user};u.dispatchEvent(new Event('input',{{bubbles:true}}));}}if(!p.value){{p.value={pass};p.dispatchEvent(new Event('input',{{bubbles:true}}));}}}})();";
+        try { await web.CoreWebView2.ExecuteScriptAsync(script); } catch { }
+    }
+    private async void ShowPasswords_Click(object sender, RoutedEventArgs e)
+    {
+        var records = _passwords.Values.OrderBy(p => p.Origin).ToList();
+        var list = new ListView { ItemsSource = records.Select(p => p.Origin + Environment.NewLine + (string.IsNullOrEmpty(p.Username) ? "(no username)" : p.Username)).ToList(), MaxHeight = 360 };
+        var dialog = new ContentDialog { Title = "Saved passwords (" + records.Count + ")", Content = list, PrimaryButtonText = "Fill selected", SecondaryButtonText = "Delete selected", CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        var result = await dialog.ShowAsync();
+        var index = list.SelectedIndex;
+        if (index < 0 || index >= records.Count) return;
+        var selected = records[index];
+        if (result == ContentDialogResult.Primary && ActiveWeb?.Source is not null && ActiveWeb.Source.GetLeftPart(UriPartial.Authority).Equals(selected.Origin, StringComparison.OrdinalIgnoreCase))
+            await TryAutofillAsync(ActiveWeb, ActiveWeb.Source);
+        else if (result == ContentDialogResult.Secondary)
+        {
+            _passwords.Remove(selected.Origin + "|" + selected.Username);
+            SavePasswords();
+            StatusText.Text = "Saved login deleted";
+        }
+    }
+
     private async void ProfilePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_changingProfile || ProfilePicker.SelectedItem is not string selected || selected == _profile) return;
         _changingProfile = true;
         _profile = selected;
-        _bookmarks.Clear(); LoadBookmarks();
+        _bookmarks.Clear();
+        _groups.Clear();
+        _groups.Add("Ungrouped");
+        _savedTabGroups.Clear();
+        _passwords.Clear();
+        LoadBookmarks();
+        LoadGroups();
+        LoadPasswords();
+        TabGroupPicker.ItemsSource = null;
+        TabGroupPicker.ItemsSource = _groups;
         BrowserTabs.TabItems.Clear();
+        _tabs.Clear();
+        ContentHost.Children.Clear();
+        RefreshVerticalTabs();
         await AddTabAsync();
         _changingProfile = false;
         StatusText.Text = "Profile: " + _profile;
     }
+
     private async void ShowSettings_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ContentDialog
-        {
-            Title = "AIR Browser settings",
-            Content = "This native preview uses separate browser data folders for each profile. AIR Sync, Microsoft/Google account connections, password manager, tab groups, widget management and theme editor are planned next modules. No account credentials are collected by this preview.",
-            CloseButtonText = "Close",
-            XamlRoot = BrowserTabs.XamlRoot
-        };
+        var orientation = new StackPanel { Spacing = 8 };
+        orientation.Children.Add(new TextBlock { Text = "Choose how your tabs are displayed." });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var horizontal = new Button { Content = "Horizontal tabs" };
+        horizontal.Click += (_, _) => { SetTabOrientation(false); };
+        var vertical = new Button { Content = "Vertical tabs" };
+        vertical.Click += (_, _) => { SetTabOrientation(true); };
+        buttons.Children.Add(horizontal);
+        buttons.Children.Add(vertical);
+        orientation.Children.Add(buttons);
+        orientation.Children.Add(new TextBlock { Text = "Password manager saves logins only after you approve. Passwords are encrypted for this Windows user account and are never synced in this preview.", TextWrapping = TextWrapping.Wrap });
+        var dialog = new ContentDialog { Title = "AIR Browser settings", Content = orientation, CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
         await dialog.ShowAsync();
+    }
+
+    private void NewTab_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) { _ = AddTabAsync(); args.Handled = true; }
+    private void FocusAddress_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) { AddressBox.Focus(FocusState.Programmatic); AddressBox.SelectAll(); args.Handled = true; }
+    private void Bookmark_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) { Bookmark_Click(this, new RoutedEventArgs()); args.Handled = true; }
+    private void CloseTab_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (BrowserTabs.SelectedItem is TabViewItem tab) BrowserTabs_TabCloseRequested(BrowserTabs, new TabViewTabCloseRequestedEventArgs(tab));
+        args.Handled = true;
+    }
+
+    private sealed class TabEntry(TabViewItem tab, WebView2 web, Grid host)
+    {
+        public TabViewItem Tab { get; } = tab;
+        public WebView2 Web { get; } = web;
+        public Grid Host { get; } = host;
+        public string Group { get; set; } = "Ungrouped";
+        public string DisplayTitle => (Group == "Ungrouped" ? "" : "● " + Group + "  ·  ") + (Web.CoreWebView2?.DocumentTitle ?? "New tab");
     }
     private record Bookmark(string Url, string Title);
     private record HistoryEntry(string Url, string Title, DateTimeOffset VisitedAt);
+    private record PasswordRecord(string Origin, string Username, string Password);
+    private record GroupState(List<string> Groups, Dictionary<string, string> TabGroups);
 }
