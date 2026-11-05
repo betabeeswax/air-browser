@@ -44,12 +44,21 @@ jobs:
           New-Item -ItemType Directory -Force publish | Out-Null
           msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir=publish\
 
+      - name: Package portable ZIP
+        shell: pwsh
+        run: |
+          $portable = "artifacts/AIR-Browser-Portable"
+          New-Item -ItemType Directory -Force $portable | Out-Null
+          Copy-Item -Path "publish/*" -Destination $portable -Recurse -Force
+          New-Item -ItemType File -Force "$portable/portable.mode" | Out-Null
+          Compress-Archive -Path "$portable/*" -DestinationPath "artifacts/AIR-Browser-Portable.zip" -Force
+
       - name: Build Windows installer
         shell: pwsh
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $iscc = "${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe"
           if (!(Test-Path $iscc)) { choco install innosetup --yes --no-progress }
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $iscc = "${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe"
           & $iscc installer/AIRBrowser.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -60,8 +69,10 @@ jobs:
           name: AIR Browser Native build ${{ github.run_number }}
           body: |
             Native Windows 11 AIR Browser build.
-            - Installer: AIR-Browser-Setup.exe
+            - Installer: AIR-Browser-Setup.exe (updates preserve installed browser data)
+            - Portable: AIR-Browser-Portable.zip (stores browser data beside the app)
             Built from commit ${{ github.sha }}.
           files: |
             artifacts/AIR-Browser-Setup.exe
+            artifacts/AIR-Browser-Portable.zip
           make_latest: true
