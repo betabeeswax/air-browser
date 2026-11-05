@@ -48,7 +48,7 @@ public sealed partial class MainWindow : Window
         try
         {
             Directory.CreateDirectory(ProfileFolder);
-            var environment = await CoreWebView2Environment.CreateAsync(null, ProfileFolder);
+            var environment = await CoreWebView2Environment.CreateAsync(null, ProfileFolder, null);
             await web.EnsureCoreWebView2Async(environment);
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -71,7 +71,7 @@ public sealed partial class MainWindow : Window
             web.CoreWebView2.NewWindowRequested += (_, e) =>
             {
                 e.Handled = true;
-                _ = AddTabAsync(e.Uri);
+                AddTabAsync(e.Uri);
             };
             ShowStartPage(host);
             if (!string.IsNullOrWhiteSpace(address)) Navigate(address);
