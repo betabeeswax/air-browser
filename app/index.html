@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIR Browser</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">A</span><span>AIR</span></div>
+    <div class="nav-actions">
+      <button id="backBtn" title="Back">←</button><button id="forwardBtn" title="Forward">→</button><button id="reloadBtn" title="Reload">↻</button>
+    </div>
+    <form id="addressForm" class="address-form"><span>⌕</span><input id="addressInput" autocomplete="off" spellcheck="false" placeholder="Search the web or enter an address"><button type="submit">Go</button></form>
+    <select id="engineQuick" title="Search engine"><option value="bing">Bing</option><option value="google">Google</option><option value="duckduckgo">DuckDuckGo</option><option value="brave">Brave</option></select>
+    <button id="newTabBtn" title="New tab">＋</button>
+    <button id="profileMenuBtn" class="profile-pill"><span class="avatar">A</span><span id="profileLabel">Personal</span> ▾</button>
+  </header>
+  <div class="tabbar" id="tabbar"></div>
+  <div class="main-layout">
+    <aside class="sidebar">
+      <button class="side-link active" data-page="home"><span>⌂</span> Start</button>
+      <button class="side-link" data-page="bookmarks"><span>☆</span> Bookmarks</button>
+      <button class="side-link" data-page="history"><span>◷</span> History</button>
+      <div class="side-heading">TAB GROUPS <button id="addGroupBtn">＋</button></div>
+      <div id="groupList"></div>
+      <div class="sidebar-bottom"><button class="side-link" data-page="settings"><span>⚙</span> Settings</button></div>
+    </aside>
+    <main class="content">
+      <section id="startPage" class="start-page">
+        <div class="hero-mark">A</div><h1>AIR Browser</h1><p class="subheading">A little more room to explore.</p>
+        <form id="startSearch" class="start-search"><span>⌕</span><input id="startSearchInput" placeholder="Search with your favourite engine"><button>Search</button></form>
+        <div class="widget-toolbar"><span>YOUR START PAGE</span><button id="addWidgetBtn">＋ Add widget</button><button id="themeBtn">◐ Themes</button></div>
+        <div id="widgets" class="widget-grid"></div>
+        <div class="quick-links"><button data-url="https://www.bing.com">Bing</button><button data-url="https://www.google.com">Google</button><button data-url="https://www.youtube.com">YouTube</button><button data-url="https://www.wikipedia.org">Wikipedia</button></div>
+      </section>
+      <section id="browserPage" class="browser-page hidden"><webview id="webview" allowpopups></webview></section>
+      <section id="utilityPage" class="utility-page hidden"></section>
+    </main>
+  </div>
+  <div id="popover" class="popover hidden"></div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+</div>
+<script src="app.js"></script>
+</body></html>
