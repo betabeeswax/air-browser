@@ -11,14 +11,12 @@ GitHub automatically builds a portable Windows EXE for you.
 ### How to get it:
 
 1. Go to the **[Actions](https://github.com/betabeeswax/air-browser/actions)** tab
-2. Click the latest **"Build Windows EXE"** workflow run
-3. Scroll down to **Artifacts**
-4. Download **AIR-Browser-Windows**
-5. Unzip it → you will find **`AIR-Browser-Portable.exe`**
-6. Double-click the EXE to run (no install needed)
+2. Click the latest **"Build and Release"** workflow run
+3. Scroll down to **Artifacts** or go to the **[Releases](https://github.com/betabeeswax/air-browser/releases)** page
+4. Download **AIR-Browser-Portable.exe**
+5. Double-click the EXE to run (no install needed)
 
-> You can also start a new build anytime:  
-> Actions → Build Windows EXE → **Run workflow**
+> Builds start automatically on every update.
 
 ---
 
