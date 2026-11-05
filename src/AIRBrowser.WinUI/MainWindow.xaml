@@ -14,6 +14,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -37,13 +38,18 @@
             </StackPanel>
         </Grid>
 
-        <controls:TabView x:Name="BrowserTabs" Grid.Row="1" Height="42" IsAddTabButtonVisible="True"
+        <ScrollViewer Grid.Row="1" Background="#101C2D" HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+            <StackPanel x:Name="TabGroupsBar" Orientation="Horizontal" Spacing="6" Padding="10,5"/>
+        </ScrollViewer>
+
+        <controls:TabView x:Name="BrowserTabs" Grid.Row="2" Height="42" IsAddTabButtonVisible="True"
                           AddTabButtonClick="BrowserTabs_AddTabButtonClick"
                           TabCloseRequested="BrowserTabs_TabCloseRequested"
                           SelectionChanged="BrowserTabs_SelectionChanged"
                           Background="#0D1726" Foreground="#EAF3FF"/>
 
-        <Grid Grid.Row="2" ColumnSpacing="0">
+        <Grid Grid.Row="3" ColumnSpacing="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="210"/>
                 <ColumnDefinition Width="*"/>
@@ -103,7 +109,7 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="3" Background="#0D1726" Padding="12,6">
+        <Border Grid.Row="4" Background="#0D1726" Padding="12,6">
             <TextBlock x:Name="StatusText" Text="Ready • AIR Browser" FontSize="12" Foreground="#8FA8C8"/>
         </Border>
     </Grid>
