@@ -10,7 +10,7 @@ Source: https://github.com/betabeeswax/air-browser
 Every update to `main` starts a Windows build and publishes a GitHub Release.
 
 - **Installer:** `AIR-Browser-Setup.exe` installs AIR Browser.
-- **Portable:** `AIR-Browser-Windows11-Portable.zip` contains the app folder. Extract it, then run `AIRBrowser.WinUI.exe`.
+- **Portable:** `AIR-Browser-Portable.zip` contains the app folder. Extract it somewhere you can write files, then run `AIRBrowser.WinUI.exe`.
 
 Downloads: https://github.com/betabeeswax/air-browser/releases
 
@@ -45,4 +45,4 @@ AIR account sync, Microsoft/Google provider integrations, encrypted password syn
 - Browser profiles and data are stored separately under `%LOCALAPPDATA%\AIR Browser`, not inside the installation folder.
 - Normal updates do **not** erase bookmarks, history, saved passwords, or WebView profiles.
 - Uninstalling the app also leaves this browser data folder in place. Remove it manually only if you want to erase your data.
-- The portable build uses the same Windows user data location, so moving or replacing the portable app folder does not wipe your profile.
+- The portable build stores its data in an `AIR-Browser-Data` folder beside the portable app. Keep that folder when moving or updating the portable app; deleting it deletes that portable profile.
