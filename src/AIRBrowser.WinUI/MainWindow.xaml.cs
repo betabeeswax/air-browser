@@ -15,6 +15,8 @@ namespace AIRBrowser;
 public sealed partial class MainWindow : Window
 {
     private readonly string _root;
+    private readonly bool _portableMode;
+    private readonly bool _portableDataFallback;
     private static readonly ConcurrentDictionary<string, Lazy<Task<CoreWebView2Environment>>> SharedWebViewEnvironments = new();
     private readonly ObservableCollection<string> _profiles = new() { "Personal", "Work" };
     private readonly ObservableCollection<string> _groups = new() { "Ungrouped" };
@@ -37,9 +39,21 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         var portableMarker = Path.Combine(AppContext.BaseDirectory, "portable.mode");
-        _root = File.Exists(portableMarker)
-            ? Path.Combine(AppContext.BaseDirectory, "AIR-Browser-Data")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AIR Browser");
+        _portableMode = File.Exists(portableMarker);
+        var portableRoot = Path.Combine(AppContext.BaseDirectory, "AIR-Browser-Data");
+        var localRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            _portableMode ? "AIR Browser Portable" : "AIR Browser");
+        if (_portableMode && TryPrepareWritableFolder(portableRoot))
+        {
+            _root = portableRoot;
+            _portableDataFallback = false;
+        }
+        else
+        {
+            _root = localRoot;
+            _portableDataFallback = _portableMode;
+            Directory.CreateDirectory(_root);
+        }
         InitializeComponent();
         Title = "AIR Browser";
         ExtendsContentIntoTitleBar = false;
@@ -55,7 +69,27 @@ public sealed partial class MainWindow : Window
         LoadPasswords();
         RefreshVerticalTabs();
         SetTabOrientation(false);
+        if (_portableDataFallback)
+            StatusText.Text = "Portable folder is read-only. Browser data is being saved under your Windows user profile.";
+        else if (_portableMode)
+            StatusText.Text = "Portable mode • data is stored beside AIR Browser.";
         _ = AddTabAsync();
+    }
+
+    private static bool TryPrepareWritableFolder(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            var probe = Path.Combine(folder, ".air-write-test-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private Task<CoreWebView2Environment> GetSharedWebViewEnvironmentAsync()
