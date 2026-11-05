@@ -1,196 +1,104 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIR Browser – Clean & Private</title>
-  <style>
-    :root {
-      --bg: #0a0c10;
-      --card: #161b24;
-      --border: #2a3344;
-      --text: #e8eef7;
-      --dim: #8b9bb4;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
-    }
-    .hero {
-      text-align: center;
-      padding: 90px 20px 70px;
-      background: linear-gradient(180deg, #11151c 0%, var(--bg) 100%);
-    }
-    .hero h1 {
-      font-size: 3.4rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #60a5fa, #3b82f6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 14px;
-    }
-    .hero p {
-      font-size: 1.25rem;
-      color: var(--dim);
-      max-width: 520px;
-      margin: 0 auto 36px;
-    }
-    .buttons {
-      display: flex;
-      gap: 14px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .btn {
-      display: inline-block;
-      padding: 14px 28px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.15s;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
-    .btn-primary:hover {
-      background: var(--accent-hover);
-      transform: translateY(-2px);
-    }
-    .btn-secondary {
-      background: var(--card);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover {
-      border-color: var(--accent);
-      background: #1c2330;
-    }
-    .section {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 50px 20px;
-    }
-    .section h2 {
-      font-size: 1.9rem;
-      margin-bottom: 28px;
-      text-align: center;
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 18px;
-    }
-    .feature {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-    }
-    .feature h3 {
-      font-size: 1.1rem;
-      margin-bottom: 8px;
-      color: var(--accent);
-    }
-    .feature p {
-      color: var(--dim);
-      font-size: 0.95rem;
-    }
-    .download-box {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 36px;
-      text-align: center;
-    }
-    .download-box h3 {
-      font-size: 1.4rem;
-      margin-bottom: 10px;
-    }
-    .download-box p {
-      color: var(--dim);
-      margin-bottom: 24px;
-    }
-    footer {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--dim);
-      font-size: 0.9rem;
-      border-top: 1px solid var(--border);
-      margin-top: 20px;
-    }
-    footer a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d16">
+<meta name="description" content="Download AIR Browser for Windows. A clean browser with profiles, search choices, bookmarks, widgets and local data controls.">
+<title>AIR Browser — Download</title>
+<style>
+:root{color-scheme:dark;--bg:#080d16;--panel:#111b2a;--panel2:#16243a;--line:#293b55;--text:#edf4ff;--muted:#9aabc2;--blue:#3989ff;--blue2:#1768d6;--green:#45d49a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 Inter,Segoe UI,Arial,sans-serif}a{color:inherit}.wrap{width:min(1080px,calc(100% - 40px));margin:auto}.top{height:72px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1d2a3d}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:850;letter-spacing:2px}.mark{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#65b4ff,#1762d3);font-size:22px;color:white;box-shadow:0 8px 25px #1768d655}.nav{display:flex;gap:24px}.nav a{text-decoration:none;color:var(--muted);font-size:14px}.nav a:hover{color:white}.hero{text-align:center;padding:94px 0 80px;background:radial-gradient(ellipse at 50% 0%,#18365b 0%,#0c1728 38%,var(--bg) 75%)}.eyebrow{color:#80b9ff;text-transform:uppercase;letter-spacing:2px;font-size:12px;font-weight:800}.hero h1{font-size:clamp(42px,7vw,70px);line-height:1.08;letter-spacing:-2.5px;margin:16px 0}.hero p{max-width:650px;margin:0 auto;color:#b1c1d7;font-size:19px}.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:30px 0 15px}.btn{display:inline-flex;justify-content:center;align-items:center;gap:9px;text-decoration:none;border-radius:11px;padding:13px 21px;font-weight:750;border:1px solid var(--line);transition:.15s}.btn:hover{transform:translateY(-2px)}.primary{background:var(--blue2);border-color:#3989ff;color:white}.primary:hover{background:#287ce9}.secondary{background:#111c2c}.btn[aria-disabled=true]{opacity:.5;pointer-events:none}.status{font-size:13px;color:var(--muted);min-height:23px}.status strong{color:var(--green)}.fine{font-size:12px;color:#8294ad}.section{padding:66px 0}.section-head{text-align:center;margin:0 auto 32px;max-width:650px}.section h2{font-size:32px;letter-spacing:-.7px;margin:0 0 9px}.section-head p{color:var(--muted);margin:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.card{padding:22px;background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:15px}.card .ico{font-size:23px}.card h3{font-size:17px;margin:8px 0 5px}.card p{font-size:14px;color:var(--muted);margin:0}.download-panel{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center;padding:30px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#14263e,#101827)}.download-panel h2{font-size:29px;margin:0 0 8px}.download-panel p{color:var(--muted);margin:0 0 15px}.requirements{border-left:1px solid var(--line);padding-left:28px}.requirements ul{margin:7px 0;padding-left:20px;color:var(--muted);font-size:14px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.step{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:20px}.num{display:grid;place-items:center;width:29px;height:29px;border-radius:9px;background:#1a4c85;color:#cde5ff;font-weight:800}.step h3{margin:12px 0 5px;font-size:16px}.step p{color:var(--muted);font-size:14px;margin:0}.faq{max-width:760px;margin:auto}.faq details{border-bottom:1px solid var(--line);padding:17px 2px}.faq summary{cursor:pointer;font-weight:700}.faq details p{color:var(--muted);font-size:14px;margin:10px 0 0}.links{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-top:20px}.links a{color:#9fcaff;font-size:14px}.footer{border-top:1px solid #1d2a3d;padding:28px 0 36px;color:var(--muted);font-size:13px}.footer-inner{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}.footer a{color:#9fcaff;text-decoration:none}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.download-panel{grid-template-columns:1fr}.requirements{border-left:0;border-top:1px solid var(--line);padding:18px 0 0}.steps{grid-template-columns:1fr}.hero{padding:70px 0 58px}.nav{gap:12px}.nav a{font-size:12px}}
+@media(max-width:460px){.grid{grid-template-columns:1fr}.wrap{width:min(100% - 28px,1080px)}.nav a:nth-child(2){display:none}.hero p{font-size:16px}.section{padding:48px 0}}
+</style>
 </head>
 <body>
-
-  <div class="hero">
-    <h1>AIR Browser</h1>
-    <p>A clean, simple, privacy-focused browser with profiles, widgets, tab groups, and easy data export.</p>
-    <div class="buttons">
-      <a href="https://github.com/betabeeswax/air-browser/releases" class="btn btn-primary">Download EXE</a>
-      <a href="https://github.com/betabeeswax/air-browser/archive/refs/heads/main.zip" class="btn btn-secondary">Download ZIP</a>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Features</h2>
-    <div class="features">
-      <div class="feature">
-        <h3>Multiple Profiles</h3>
-        <p>Each profile can have its own search engine (Bing, Google, DuckDuckGo, Brave).</p>
-      </div>
-      <div class="feature">
-        <h3>Custom Start Page</h3>
-        <p>Add and remove widgets like Weather, Clock, Notes, and Quick Links.</p>
-      </div>
-      <div class="feature">
-        <h3>Tab Groups</h3>
-        <p>Organize your tabs into colored groups for better focus.</p>
-      </div>
-      <div class="feature">
-        <h3>Bookmarks & Export</h3>
-        <p>Save bookmarks and export/import all your data easily.</p>
-      </div>
-      <div class="feature">
-        <h3>Dark Mode by Default</h3>
-        <p>Clean black + blue theme that matches the AIR style.</p>
-      </div>
-      <div class="feature">
-        <h3>Private by Design</h3>
-        <p>Your data stays on your device. No accounts required.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="download-box">
-      <h3>Get AIR Browser</h3>
-      <p>
-        <strong>Windows:</strong> Download the portable EXE from Releases (no install needed).<br>
-        <strong>Any computer:</strong> Download the ZIP and open the files inside the <code>app</code> folder.
-      </p>
-      <div class="buttons">
-        <a href="https://github.com/betabeeswax/air-browser/releases" class="btn btn-primary">Go to Releases</a>
-        <a href="https://github.com/betabeeswax/air-browser" class="btn btn-secondary">View Source</a>
-      </div>
-    </div>
-  </div>
-
-  <footer>
-    Made as part of the AIR project series · 
-    <a href="https://github.com/betabeeswax/air-browser">GitHub</a>
-  </footer>
-
+<header class="wrap top">
+<a class="brand" href="#"><span class="mark">A</span><span>AIR BROWSER</span></a>
+<nav class="nav" aria-label="Main navigation"><a href="#features">Features</a><a href="#download">Download</a><a href="#help">Help</a><a href="https://github.com/betabeeswax/air-browser" target="_blank" rel="noopener">GitHub ↗</a></nav>
+</header>
+<main>
+<section class="hero">
+<div class="wrap">
+<div class="eyebrow">A simpler way to browse</div>
+<h1>Meet AIR Browser.</h1>
+<p>A clean, customizable desktop browser with a useful start page, search choices, profiles and handy ways to manage your browsing data.</p>
+<div class="actions">
+<a id="heroDownload" class="btn primary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="heroDownloadText">Check Windows download</span></a>
+<a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">All releases ↗</a>
+</div>
+<div id="releaseStatus" class="status" role="status" aria-live="polite">Checking the latest Windows release…</div>
+<div class="fine">Windows 10/11 · 64-bit · Portable app · No installer required</div>
+</div>
+</section>
+<section id="features" class="section wrap">
+<div class="section-head"><div class="eyebrow">Made to feel simple</div><h2>Your browser, your setup.</h2><p>Keep the tools you use close and make the start page your own.</p></div>
+<div class="grid">
+<article class="card"><div class="ico">⌕</div><h3>Search your way</h3><p>Choose Bing, Google, DuckDuckGo or Brave Search as your preferred search engine.</p></article>
+<article class="card"><div class="ico">▦</div><h3>Custom start page</h3><p>Use quick links, a clock, notes and a weather lookup widget on your home page.</p></article>
+<article class="card"><div class="ico">◉</div><h3>Browser profiles</h3><p>Keep separate profile settings and site sessions on the same computer.</p></article>
+<article class="card"><div class="ico">☆</div><h3>Bookmarks & history</h3><p>Save pages and revisit websites from your browsing history.</p></article>
+<article class="card"><div class="ico">⇧</div><h3>Backup your settings</h3><p>Export and import AIR profile settings, bookmarks, history and start-page choices.</p></article>
+<article class="card"><div class="ico">◐</div><h3>Choose a theme</h3><p>Start with the AIR dark-blue look, or switch to midnight, purple or light mode.</p></article>
+</div>
+</section>
+<section id="download" class="section wrap">
+<div class="download-panel">
+<div><div class="eyebrow">Get AIR Browser</div><h2>Download for Windows.</h2><p>The portable version runs directly on a compatible 64-bit Windows PC. Your browser settings are stored locally on that device.</p>
+<div class="actions" style="justify-content:flex-start;margin-bottom:8px"><a id="downloadButton" class="btn primary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="downloadButtonText">Check latest release</span></a><a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">Release page ↗</a></div>
+<div id="downloadVersion" class="status">The download button will activate when a Windows build is published.</div></div>
+<div class="requirements"><h3>System requirements</h3><ul><li>Windows 10 or Windows 11</li><li>64-bit (x64) computer</li><li>Internet connection for websites</li><li>About 200 MB of free space recommended</li></ul><p class="fine">AIR Browser is currently distributed as a Windows portable application. macOS and Linux builds are not available yet.</p></div>
+</div>
+</section>
+<section class="section wrap">
+<div class="section-head"><div class="eyebrow">Quick setup</div><h2>Up and running in 3 steps.</h2></div>
+<div class="steps">
+<article class="step"><span class="num">1</span><h3>Download</h3><p>Use the Windows download button above, or open the Releases page to see available builds.</p></article>
+<article class="step"><span class="num">2</span><h3>Open the file</h3><p>Run AIR-Browser-Portable.exe. Windows may ask you to confirm that you trust a downloaded app.</p></article>
+<article class="step"><span class="num">3</span><h3>Make it yours</h3><p>Choose a search engine, add start-page widgets and save your favourite websites.</p></article>
+</div>
+</section>
+<section id="help" class="section wrap">
+<div class="section-head"><div class="eyebrow">Good to know</div><h2>Questions & answers.</h2></div>
+<div class="faq">
+<details><summary>Is AIR Browser free?</summary><p>Yes. The project is open source and the Windows portable build is provided through GitHub Releases.</p></details>
+<details><summary>Does AIR Browser need an account?</summary><p>No AIR account is required. Profile settings and browser data are stored locally on your device. AIR does not currently provide cloud sync.</p></details>
+<details><summary>Where are my bookmarks and settings?</summary><p>They are saved in the browser's local app storage on your computer. Use Settings → Backup & sync to export a backup before moving to another device.</p></details>
+<details><summary>Can I use it on Android, macOS or Linux?</summary><p>Not currently. The published desktop build is for 64-bit Windows. Other platforms may be considered later.</p></details>
+<details><summary>Windows says the app is unrecognized. What should I do?</summary><p>Only download AIR Browser from this project's official GitHub Releases page. Windows SmartScreen warnings can appear for new or unsigned apps. Do not run a file if you are unsure it came from the official release.</p></details>
+<details><summary>Where can I report a problem?</summary><p>Open the GitHub repository and create an issue with what happened, what you expected and any error message. Do not include passwords or private browsing information.</p></details>
+</div>
+<div class="links"><a href="https://github.com/betabeeswax/air-browser" target="_blank" rel="noopener">Source code ↗</a><a href="https://github.com/betabeeswax/air-browser/issues" target="_blank" rel="noopener">Report a problem ↗</a><a href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">All releases ↗</a></div>
+</section>
+</main>
+<footer class="footer"><div class="wrap footer-inner"><span>© <span id="year"></span> AIR Browser · Part of the AIR project series</span><span>Built for a cleaner browsing experience · <a href="https://github.com/betabeeswax/air-browser">GitHub</a></span></div></footer>
+<script>
+(function(){
+const repo="betabeeswax/air-browser";
+const status=document.getElementById("releaseStatus");
+const version=document.getElementById("downloadVersion");
+const buttons=[document.getElementById("heroDownload"),document.getElementById("downloadButton")];
+document.getElementById("year").textContent=new Date().getFullYear();
+function setUnavailable(message){
+ status.textContent=message;
+ version.textContent=message;
+ buttons.forEach(b=>{b.href="https://github.com/"+repo+"/releases";b.setAttribute("aria-disabled","true")});
+}
+fetch("https://api.github.com/repos/"+repo+"/releases/latest",{headers:{Accept:"application/vnd.github+json"}})
+.then(async r=>{if(!r.ok)throw new Error(r.status===404?"No Windows release has been published yet. Check the Releases page for build progress.":"The release status could not be loaded. You can still open the Releases page.");return r.json()})
+.then(release=>{
+ const asset=(release.assets||[]).find(a=>a.name==="AIR-Browser-Portable.exe");
+ if(!asset){setUnavailable("Latest release found, but the Windows EXE is not attached yet. Open Releases to check.");return}
+ buttons.forEach(b=>{b.href=asset.browser_download_url;b.removeAttribute("aria-disabled");b.setAttribute("download","AIR-Browser-Portable.exe")});
+ document.getElementById("heroDownloadText").textContent="Download for Windows";
+ document.getElementById("downloadButtonText").textContent="Download AIR Browser";
+ const label="Latest version: "+release.tag_name+" · "+(asset.size/1024/1024).toFixed(1)+" MB";
+ status.innerHTML="<strong>Windows download available</strong> · "+label;
+ version.textContent=label+" · Published "+new Date(release.published_at).toLocaleDateString();
+})
+.catch(error=>setUnavailable(error.message+" The Releases page remains available."));
+})();
+</script>
 </body>
 </html>
