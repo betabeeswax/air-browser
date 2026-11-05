@@ -75,13 +75,19 @@ public sealed partial class MainWindow : Window
                         StatusText.Text = "Download interrupted: " + safeName;
                 };
             };
+            Grid? startPage = null;
             web.CoreWebView2.DocumentTitleChanged += (_, _) =>
             {
                 tab.Header = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
             };
             web.CoreWebView2.NavigationStarting += (_, e) =>
             {
-                AddressBox.Text = e.Uri;
+                if (startPage is not null)
+                {
+                    host.Children.Remove(startPage);
+                    startPage = null;
+                }
+                if (ActiveWeb == web) AddressBox.Text = e.Uri;
                 StatusText.Text = "Loading " + e.Uri;
             };
             web.CoreWebView2.NavigationCompleted += (_, e) =>
@@ -96,7 +102,7 @@ public sealed partial class MainWindow : Window
                 e.Handled = true;
                 AddTabAsync(e.Uri);
             };
-            ShowStartPage(host);
+            startPage = ShowStartPage(host);
             if (!string.IsNullOrWhiteSpace(address)) Navigate(address);
         }
         catch (Exception ex)
@@ -106,7 +112,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowStartPage(Grid host)
+    private Grid ShowStartPage(Grid host)
     {
         var panel = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 8, 13, 22)), Margin = new Thickness(36) };
         var stack = new StackPanel { Spacing = 18, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -131,6 +137,7 @@ public sealed partial class MainWindow : Window
         stack.Children.Add(tiles);
         panel.Children.Add(stack);
         host.Children.Add(panel);
+        return panel;
     }
 
     private string SearchUrl(string query)
