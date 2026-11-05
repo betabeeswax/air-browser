@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'installer/**'
+      - 'assets/**'
       - 'global.json'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -20,6 +21,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2022
+    env:
+      AIR_VERSION: 0.2.${{ github.run_number }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
