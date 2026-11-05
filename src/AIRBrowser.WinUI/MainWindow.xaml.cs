@@ -303,6 +303,8 @@ public sealed partial class MainWindow : Window
         BrowserTabs.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
         VerticalTabs.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
         SidebarTitle.Text = vertical ? "VERTICAL TABS" : "AIR SIDEBAR";
+        VerticalTabsButton.Background = vertical ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)) : null;
+        HorizontalTabsButton.Background = vertical ? null : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214));
         StatusText.Text = vertical ? "Vertical tabs enabled" : "Horizontal tabs enabled";
     }
     private void SidebarToggle_Click(object sender, RoutedEventArgs e)
@@ -565,7 +567,16 @@ public sealed partial class MainWindow : Window
     private void Bookmark_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) { Bookmark_Click(this, new RoutedEventArgs()); args.Handled = true; }
     private void CloseTab_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (BrowserTabs.SelectedItem is TabViewItem tab) BrowserTabs_TabCloseRequested(BrowserTabs, new TabViewTabCloseRequestedEventArgs(tab));
+        if (BrowserTabs.SelectedItem is TabViewItem tab)
+        {
+            var entry = _tabs.FirstOrDefault(t => t.Tab == tab);
+            if (entry is not null) _tabs.Remove(entry);
+            ContentHost.Children.Clear();
+            BrowserTabs.TabItems.Remove(tab);
+            if (BrowserTabs.TabItems.Count == 0) _ = AddTabAsync();
+            else ShowEntry(ActiveEntry);
+            RefreshVerticalTabs();
+        }
         args.Handled = true;
     }
 
