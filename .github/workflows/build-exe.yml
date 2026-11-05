@@ -1,9 +1,12 @@
-name: Build Windows EXE
+name: Build and Release
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,3 +35,24 @@ jobs:
           name: AIR-Browser-Windows
           path: dist/*.exe
           retention-days: 14
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: AIR Browser v1.0.${{ github.run_number }}
+          body: |
+            ## AIR Browser
+            
+            Clean, simple, privacy-focused browser.
+            
+            ### Download
+            - **AIR-Browser-Portable.exe** → Windows (no install needed)
+            
+            Just download and double-click the EXE to run.
+          files: |
+            dist/AIR-Browser-Portable.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
