@@ -29,11 +29,17 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Set up Visual Studio MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Restore
-        run: dotnet restore src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj
+        run: msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
 
       - name: Publish native Windows app
-        run: dotnet publish src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -o publish
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force publish | Out-Null
+          msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir=publish\
 
       - name: Prepare portable package
         shell: pwsh
