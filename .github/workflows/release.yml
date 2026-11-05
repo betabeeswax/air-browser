@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'website/**'
       - 'installer/**'
       - 'assets/**'
       - 'global.json'
