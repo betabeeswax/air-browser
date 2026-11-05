@@ -61,7 +61,7 @@ public sealed partial class MainWindow : Window
         var lazy = SharedWebViewEnvironments.GetOrAdd(
             webViewData,
             folder => new Lazy<Task<CoreWebView2Environment>>(
-                () => CoreWebView2Environment.CreateWithOptionsAsync(null, folder, new CoreWebView2EnvironmentOptions())));
+                async () => await CoreWebView2Environment.CreateWithOptionsAsync(null, folder, new CoreWebView2EnvironmentOptions())));
         return lazy.Value;
     }
 
