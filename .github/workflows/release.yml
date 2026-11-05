@@ -1,4 +1,4 @@
-name: Build and Release AIR Browser
+name: Build and Release AIR Browser (Native Windows)
 
 on:
   push:
@@ -14,20 +14,44 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm install
-      - name: Build portable Windows app
-        run: npm run build
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj
+
+      - name: Publish native Windows app
+        run: dotnet publish src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -o publish
+
+      - name: Prepare portable package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Compress-Archive -Path publish/* -DestinationPath artifacts/AIR-Browser-Windows11-Portable.zip -Force
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc installer/AIRBrowser.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: air-browser-build-${{ github.run_number }}
-          name: AIR Browser build ${{ github.run_number }}
-          body: Automated Windows portable build from commit ${{ github.sha }}.
-          files: dist/*.exe
+          tag_name: air-browser-native-build-${{ github.run_number }}
+          name: AIR Browser Native build ${{ github.run_number }}
+          body: |
+            Native Windows 11 AIR Browser build.
+            - Installer: AIR-Browser-Setup.exe
+            - Portable package: AIR-Browser-Windows11-Portable.zip
+            Built from commit ${{ github.sha }}.
+          files: |
+            artifacts/AIR-Browser-Setup.exe
+            artifacts/AIR-Browser-Windows11-Portable.zip
           make_latest: true
