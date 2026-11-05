@@ -44,12 +44,6 @@ jobs:
           New-Item -ItemType Directory -Force publish | Out-Null
           msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir=publish\
 
-      - name: Prepare portable package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force artifacts | Out-Null
-          Compress-Archive -Path publish/* -DestinationPath artifacts/AIR-Browser-Windows11-Portable.zip -Force
-
       - name: Build Windows installer
         shell: pwsh
         run: |
@@ -67,9 +61,7 @@ jobs:
           body: |
             Native Windows 11 AIR Browser build.
             - Installer: AIR-Browser-Setup.exe
-            - Portable package: AIR-Browser-Windows11-Portable.zip
             Built from commit ${{ github.sha }}.
           files: |
             artifacts/AIR-Browser-Setup.exe
-            artifacts/AIR-Browser-Windows11-Portable.zip
           make_latest: true
