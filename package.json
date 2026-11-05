@@ -22,9 +22,7 @@
     },
     "files": [
       "main.js",
-      "index.html",
-      "css/**/*",
-      "js/**/*",
+      "app/**/*",
       "assets/**/*"
     ],
     "win": {

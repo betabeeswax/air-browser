@@ -17,7 +17,7 @@ function createWindow() {
     autoHideMenuBar: true
   });
 
-  win.loadFile('index.html');
+  win.loadFile(path.join(__dirname, 'app', 'index.html'));
 }
 
 app.whenReady().then(() => {
