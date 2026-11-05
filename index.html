@@ -29,7 +29,7 @@
 <a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">All releases ↗</a>
 </div>
 <div id="releaseStatus" class="status" role="status" aria-live="polite">Checking the latest Windows release…</div>
-<div class="fine">Windows 10/11 · 64-bit · Portable app · No installer required</div>
+<div class="fine">Windows 11 · 64-bit · Installer + portable download</div>
 </div>
 </section>
 <section id="features" class="section wrap">
@@ -45,26 +45,26 @@
 </section>
 <section id="download" class="section wrap">
 <div class="download-panel">
-<div><div class="eyebrow">Get AIR Browser</div><h2>Download for Windows.</h2><p>The portable version runs directly on a compatible 64-bit Windows PC. Your browser settings are stored locally on that device.</p>
-<div class="actions" style="justify-content:flex-start;margin-bottom:8px"><a id="downloadButton" class="btn primary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="downloadButtonText">Check latest release</span></a><a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">Release page ↗</a></div>
+<div><div class="eyebrow">Get AIR Browser</div><h2>Download for Windows.</h2><p>Choose the Windows installer for a normal setup, or download the portable ZIP and extract it. Browser data is stored locally in your Windows user profile.</p>
+<div class="actions" style="justify-content:flex-start;margin-bottom:8px"><a id="installerButton" class="btn primary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="installerButtonText">Windows installer</span></a><a id="portableButton" class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="portableButtonText">Portable ZIP</span></a><a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">All releases ↗</a></div>
 <div id="downloadVersion" class="status">The download button will activate when a Windows build is published.</div></div>
-<div class="requirements"><h3>System requirements</h3><ul><li>Windows 10 or Windows 11</li><li>64-bit (x64) computer</li><li>Internet connection for websites</li><li>About 200 MB of free space recommended</li></ul><p class="fine">AIR Browser is currently distributed as a Windows portable application. macOS and Linux builds are not available yet.</p></div>
+<div class="requirements"><h3>System requirements</h3><ul><li>Windows 11</li><li>64-bit (x64) computer</li><li>Internet connection for websites</li><li>About 200 MB of free space recommended</li></ul><p class="fine">AIR Browser currently targets Windows 11 x64. The portable download is a ZIP containing the application files; it is not a single-file EXE.</p></div>
 </div>
 </section>
 <section class="section wrap">
 <div class="section-head"><div class="eyebrow">Quick setup</div><h2>Up and running in 3 steps.</h2></div>
 <div class="steps">
 <article class="step"><span class="num">1</span><h3>Download</h3><p>Use the Windows download button above, or open the Releases page to see available builds.</p></article>
-<article class="step"><span class="num">2</span><h3>Open the file</h3><p>Run AIR-Browser-Portable.exe. Windows may ask you to confirm that you trust a downloaded app.</p></article>
+<article class="step"><span class="num">2</span><h3>Install or extract</h3><p>Run AIR-Browser-Setup.exe, or extract the portable ZIP and open AIRBrowser.WinUI.exe.</p></article>
 <article class="step"><span class="num">3</span><h3>Make it yours</h3><p>Choose a search engine, add start-page widgets and save your favourite websites.</p></article>
 </div>
 </section>
 <section id="help" class="section wrap">
 <div class="section-head"><div class="eyebrow">Good to know</div><h2>Questions & answers.</h2></div>
 <div class="faq">
-<details><summary>Is AIR Browser free?</summary><p>Yes. The project is open source and the Windows portable build is provided through GitHub Releases.</p></details>
-<details><summary>Does AIR Browser need an account?</summary><p>No AIR account is required. Profile settings and browser data are stored locally on your device. AIR does not currently provide cloud sync.</p></details>
-<details><summary>Where are my bookmarks and settings?</summary><p>They are saved in the browser's local app storage on your computer. Use Settings → Backup & sync to export a backup before moving to another device.</p></details>
+<details><summary>Is AIR Browser free?</summary><p>Yes. The project is open source and Windows builds are published through GitHub Releases.</p></details>
+<details><summary>Does AIR Browser need an account?</summary><p>No AIR account is required for local browsing. AIR account sync and Microsoft/Google integrations are planned; cloud sync is not active in this first native build.</p></details>
+<details><summary>Where are my bookmarks and settings?</summary><p>They are saved in the browser's local profile folders. Cloud sync and backup controls are planned follow-up features.</p></details>
 <details><summary>Can I use it on Android, macOS or Linux?</summary><p>Not currently. The published desktop build is for 64-bit Windows. Other platforms may be considered later.</p></details>
 <details><summary>Windows says the app is unrecognized. What should I do?</summary><p>Only download AIR Browser from this project's official GitHub Releases page. Windows SmartScreen warnings can appear for new or unsigned apps. Do not run a file if you are unsure it came from the official release.</p></details>
 <details><summary>Where can I report a problem?</summary><p>Open the GitHub repository and create an issue with what happened, what you expected and any error message. Do not include passwords or private browsing information.</p></details>
@@ -78,26 +78,28 @@
 const repo="betabeeswax/air-browser";
 const status=document.getElementById("releaseStatus");
 const version=document.getElementById("downloadVersion");
-const buttons=[document.getElementById("heroDownload"),document.getElementById("downloadButton")];
+const installer=document.getElementById("installerButton");
+const portable=document.getElementById("portableButton");
+const hero=document.getElementById("heroDownload");
 document.getElementById("year").textContent=new Date().getFullYear();
-function setUnavailable(message){
- status.textContent=message;
- version.textContent=message;
- buttons.forEach(b=>{b.href="https://github.com/"+repo+"/releases";b.setAttribute("aria-disabled","true")});
+function unavailable(message){
+ status.textContent=message; version.textContent=message;
+ [installer,portable,hero].forEach(b=>{b.href="https://github.com/"+repo+"/releases";b.setAttribute("aria-disabled","true")});
 }
 fetch("https://api.github.com/repos/"+repo+"/releases/latest",{headers:{Accept:"application/vnd.github+json"}})
-.then(async r=>{if(!r.ok)throw new Error(r.status===404?"No Windows release has been published yet. Check the Releases page for build progress.":"The release status could not be loaded. You can still open the Releases page.");return r.json()})
+.then(async r=>{if(!r.ok)throw new Error(r.status===404?"The first native Windows build is not published yet. Check Releases for build progress.":"Release information could not be loaded. You can still open Releases.");return r.json()})
 .then(release=>{
- const asset=(release.assets||[]).find(a=>a.name==="AIR-Browser-Portable.exe");
- if(!asset){setUnavailable("Latest release found, but the Windows EXE is not attached yet. Open Releases to check.");return}
- buttons.forEach(b=>{b.href=asset.browser_download_url;b.removeAttribute("aria-disabled");b.setAttribute("download","AIR-Browser-Portable.exe")});
- document.getElementById("heroDownloadText").textContent="Download for Windows";
- document.getElementById("downloadButtonText").textContent="Download AIR Browser";
- const label="Latest version: "+release.tag_name+" · "+(asset.size/1024/1024).toFixed(1)+" MB";
- status.innerHTML="<strong>Windows download available</strong> · "+label;
+ const assets=release.assets||[];
+ const setup=assets.find(a=>a.name==="AIR-Browser-Setup.exe");
+ const zip=assets.find(a=>a.name==="AIR-Browser-Windows11-Portable.zip");
+ if(setup){installer.href=setup.browser_download_url;installer.removeAttribute("aria-disabled");document.getElementById("installerButtonText").textContent="Download installer";hero.href=setup.browser_download_url;hero.removeAttribute("aria-disabled");document.getElementById("heroDownloadText").textContent="Download for Windows";}
+ if(zip){portable.href=zip.browser_download_url;portable.removeAttribute("aria-disabled");document.getElementById("portableButtonText").textContent="Download portable ZIP";}
+ if(!setup&&!zip){unavailable("Latest release found, but its Windows downloads are not attached yet.");return;}
+ const label="Latest version: "+release.tag_name+" · "+(setup?"Installer ready":"Installer pending")+" · "+(zip?"Portable ZIP ready":"Portable ZIP pending");
+ status.innerHTML="<strong>Native Windows build published</strong> · "+label;
  version.textContent=label+" · Published "+new Date(release.published_at).toLocaleDateString();
 })
-.catch(error=>setUnavailable(error.message+" The Releases page remains available."));
+.catch(error=>unavailable(error.message+" The Releases page remains available."));
 })();
 </script>
 </body>
