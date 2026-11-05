@@ -37,3 +37,12 @@ Downloads: https://github.com/betabeeswax/air-browser/releases
 AIR account sync, Microsoft/Google provider integrations, encrypted password sync, tab groups and cross-device group sync, configurable weather and other widgets, profile management, theme editor, richer history/bookmark management and privacy controls are planned follow-up work. They are not represented as complete in this first native foundation.
 
 **Security note:** AIR does not ask for or store your Microsoft or Google passwords. Provider sign-in will use official OAuth flows when implemented.
+
+
+## AIR Browser updates and data
+
+- Installing a newer AIR Browser setup over an existing installation updates the program in place.
+- Browser profiles and data are stored separately under `%LOCALAPPDATA%\AIR Browser`, not inside the installation folder.
+- Normal updates do **not** erase bookmarks, history, saved passwords, or WebView profiles.
+- Uninstalling the app also leaves this browser data folder in place. Remove it manually only if you want to erase your data.
+- The portable build uses the same Windows user data location, so moving or replacing the portable app folder does not wipe your profile.
