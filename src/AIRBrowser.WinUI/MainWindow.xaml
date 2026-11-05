@@ -52,7 +52,12 @@
                 <Button x:Name="ForwardButton" Grid.Column="1" Content="→" Click="Forward_Click" ToolTipService.ToolTip="Forward"/>
                 <Button Grid.Column="2" Content="↻" Click="Reload_Click" ToolTipService.ToolTip="Reload"/>
                 <TextBox x:Name="AddressBox" Grid.Column="3" Margin="8,0" PlaceholderText="Search Bing or enter a website address" KeyDown="AddressBox_KeyDown" VerticalContentAlignment="Center"/>
-                <Button Grid.Column="4" Content="☆" Click="Bookmark_Click" ToolTipService.ToolTip="Bookmark this page"/>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="3">
+                    <Button Content="☆" Click="Bookmark_Click" ToolTipService.ToolTip="Bookmark this page"/>
+                    <Button Content="Bookmarks" Click="ShowBookmarks_Click"/>
+                    <Button Content="History" Click="ShowHistory_Click"/>
+                    <Button Content="Downloads" Click="ShowDownloads_Click"/>
+                </StackPanel>
                 <ComboBox x:Name="SearchEnginePicker" Grid.Column="5" Width="125" Margin="8,0" SelectionChanged="SearchEnginePicker_SelectionChanged"/>
                 <Button Grid.Column="6" Content="Go" Click="Go_Click"/>
             </Grid>
