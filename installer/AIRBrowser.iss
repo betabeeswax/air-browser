@@ -9,7 +9,6 @@ DefaultGroupName=AIR Browser
 DisableProgramGroupPage=yes
 OutputDir=..\artifacts
 OutputBaseFilename=AIR-Browser-Setup
-SetupIconFile=..\assets\air-browser.ico
 UninstallDisplayIcon={app}\AIRBrowser.WinUI.exe
 Compression=lzma2
 SolidCompression=yes
