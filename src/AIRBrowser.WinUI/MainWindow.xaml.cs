@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,6 +15,7 @@ namespace AIRBrowser;
 public sealed partial class MainWindow : Window
 {
     private readonly string _root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AIR Browser");
+    private static readonly ConcurrentDictionary<string, Lazy<Task<CoreWebView2Environment>>> SharedWebViewEnvironments = new();
     private readonly ObservableCollection<string> _profiles = new() { "Personal", "Work" };
     private readonly ObservableCollection<string> _groups = new() { "Ungrouped" };
     private readonly List<TabEntry> _tabs = new();
@@ -45,10 +47,22 @@ public sealed partial class MainWindow : Window
         TabGroupPicker.ItemsSource = _groups;
         LoadBookmarks();
         LoadGroups();
+        RefreshTabGroupsBar();
         LoadPasswords();
         RefreshVerticalTabs();
         SetTabOrientation(false);
         _ = AddTabAsync();
+    }
+
+    private Task<CoreWebView2Environment> GetSharedWebViewEnvironmentAsync()
+    {
+        var webViewData = Path.Combine(_root, "WebView2");
+        Directory.CreateDirectory(webViewData);
+        var lazy = SharedWebViewEnvironments.GetOrAdd(
+            webViewData,
+            folder => new Lazy<Task<CoreWebView2Environment>>(
+                () => CoreWebView2Environment.CreateWithOptionsAsync(null, folder, new CoreWebView2EnvironmentOptions())));
+        return lazy.Value;
     }
 
     private async Task AddTabAsync(string? address = null)
@@ -68,9 +82,7 @@ public sealed partial class MainWindow : Window
         try
         {
             Directory.CreateDirectory(ProfileFolder);
-            var webViewData = Path.Combine(_root, "WebView2");
-            Directory.CreateDirectory(webViewData);
-            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, webViewData, new CoreWebView2EnvironmentOptions());
+            var environment = await GetSharedWebViewEnvironmentAsync();
             var controllerOptions = environment.CreateCoreWebView2ControllerOptions();
             controllerOptions.ProfileName = SafeName(_profile);
             await web.EnsureCoreWebView2Async(environment, controllerOptions);
@@ -162,10 +174,10 @@ public sealed partial class MainWindow : Window
                     await TryAutofillAsync(web, uri);
                 }
             };
-            web.CoreWebView2.NewWindowRequested += (_, e) =>
+            web.CoreWebView2.NewWindowRequested += (sender, e) =>
             {
                 e.Handled = true;
-                _ = AddTabAsync(e.Uri);
+                AddTabAsync(e.Uri);
             };
             startPage = ShowStartPage(host);
             if (!string.IsNullOrWhiteSpace(address)) NavigateEntry(entry, address);
@@ -207,7 +219,39 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(title)) title = "New tab";
         entry.Tab.Header = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
         RefreshVerticalTabs();
+        RefreshTabGroupsBar();
         SaveGroups();
+    }
+
+    private void RefreshTabGroupsBar()
+    {
+        TabGroupsBar.Children.Clear();
+        var activeGroup = ActiveEntry?.Group ?? "Ungrouped";
+        foreach (var group in _groups)
+        {
+            var button = new Button
+            {
+                Content = (group == activeGroup ? "● " : "") + group,
+                Padding = new Thickness(14, 5, 14, 5),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    group == activeGroup
+                        ? Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)
+                        : Microsoft.UI.ColorHelper.FromArgb(255, 25, 39, 58)),
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+            };
+            button.Click += (_, _) =>
+            {
+                var first = _tabs.FirstOrDefault(t => t.Group == group);
+                if (first is not null) BrowserTabs.SelectedItem = first.Tab;
+                else if (group != "Ungrouped" && ActiveEntry is not null) AssignGroup(ActiveEntry, group);
+                RefreshTabGroupsBar();
+            };
+            TabGroupsBar.Children.Add(button);
+        }
+        var add = new Button { Content = "＋", Padding = new Thickness(12, 5, 12, 5) };
+        ToolTipService.SetToolTip(add, "Create a tab group");
+        add.Click += NewGroup_Click;
+        TabGroupsBar.Children.Add(add);
     }
 
     private Grid ShowStartPage(Grid host)
@@ -421,6 +465,7 @@ public sealed partial class MainWindow : Window
         var name = nameBox.Text.Trim();
         if (name.Length == 0) return;
         if (!_groups.Contains(name)) _groups.Add(name);
+        RefreshTabGroupsBar();
         SaveGroups();
         if (ActiveEntry is not null) AssignGroup(ActiveEntry, name);
         TabGroupPicker.SelectedItem = name;
@@ -436,6 +481,7 @@ public sealed partial class MainWindow : Window
         UpdateTabHeader(entry);
         if (entry.Web.Source is not null) _savedTabGroups[entry.Web.Source.ToString()] = group;
         SaveGroups();
+        RefreshTabGroupsBar();
         StatusText.Text = group == "Ungrouped" ? "Tab removed from its group" : "Tab added to " + group;
     }
     private readonly Dictionary<string, string> _savedTabGroups = new();
@@ -539,6 +585,7 @@ public sealed partial class MainWindow : Window
         LoadBookmarks();
         LoadGroups();
         LoadPasswords();
+        RefreshTabGroupsBar();
         TabGroupPicker.ItemsSource = null;
         TabGroupPicker.ItemsSource = _groups;
         BrowserTabs.TabItems.Clear();
