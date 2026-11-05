@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'installer/**'
+      - 'global.json'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
