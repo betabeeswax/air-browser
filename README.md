@@ -1,46 +1,57 @@
 # AIR Browser
 
-**A clean, simple, privacy-focused web browser**
+**A clean, simple, privacy-focused browser**
 
-AIR Browser is a lightweight browser interface you can use right in your browser. It has a modern dark design, multiple profiles, widgets, tab groups, and easy data export.
+AIR Browser has a modern dark design, multiple profiles, widgets, tab groups, and easy data export.
+
+## Download the Windows EXE (Recommended)
+
+GitHub automatically builds a portable Windows EXE for you.
+
+### How to get it:
+
+1. Go to the **[Actions](https://github.com/betabeeswax/air-browser/actions)** tab
+2. Click the latest **"Build Windows EXE"** workflow run
+3. Scroll down to **Artifacts**
+4. Download **AIR-Browser-Windows**
+5. Unzip it → you will find **`AIR-Browser-Portable.exe`**
+6. Double-click the EXE to run (no install needed)
+
+> You can also start a new build anytime:  
+> Actions → Build Windows EXE → **Run workflow**
+
+---
+
+## Other Ways to Use
+
+### Option A – ZIP + .bat launcher
+1. Click the green **Code** button → **Download ZIP**
+2. Unzip the folder
+3. Double-click **`AIR-Browser.bat`**  
+   (It opens in a clean app-style window)
+
+### Option B – Open in browser
+1. Download the ZIP
+2. Open `index.html` in Chrome, Edge, or Firefox
+
+---
 
 ## Features
 
 - Custom AIR Start Page with widgets (Weather, Clock, Notes, Quick Links)
 - Dark mode by default (black + blue theme)
-- Multiple Profiles – each profile can use a different search engine
+- Multiple Profiles – each can have its own search engine
 - Quick switch between Bing, Google, DuckDuckGo, and Brave
 - Tab Groups with colors
 - Bookmarks manager
 - Export / Import all your data as a JSON file
-- Works completely offline after the first load (data stays on your device)
-
-## How to Use
-
-### Option 1 – Use Online (easiest)
-Just open the live site once it is deployed on Vercel.
-
-### Option 2 – Download and open locally
-1. Click the green **Code** button on this GitHub page
-2. Choose **Download ZIP**
-3. Unzip the folder
-4. Open `index.html` in Chrome, Edge, or Firefox
-
-### Option 3 – Deploy your own copy
-You can fork this repo and deploy it to Vercel or Netlify in one click.
+- Your data stays on your device
 
 ## About Sync
 
 AIR Browser keeps your bookmarks, profiles, and settings on your own device.  
 You can Export a backup and Import it on another computer.  
-Full automatic sync with Google or Microsoft passwords is not possible for custom browsers (they lock that), but Export/Import gives you full control.
-
-## Roadmap
-
-- Better theme system
-- Local password manager
-- GitHub Gist sync option
-- More widgets
+Full automatic sync with Google or Microsoft is not possible for custom browsers, but Export/Import gives you full control.
 
 ---
 
