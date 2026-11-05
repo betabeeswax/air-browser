@@ -3,7 +3,15 @@ name: Build and Release AIR Browser (Native Windows)
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
+
+concurrency:
+  group: air-browser-native-windows
+  cancel-in-progress: true
 
 permissions:
   contents: write
