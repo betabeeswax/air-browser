@@ -13,7 +13,7 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>assets\air-browser.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\assets\air-browser.ico</ApplicationIcon>
     <PublishReadyToRun>true</PublishReadyToRun>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
