@@ -42,8 +42,9 @@ jobs:
       - name: Publish native Windows app
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force publish | Out-Null
-          msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir=publish\
+          $publishDir = (Join-Path $PWD "publish") + [IO.Path]::DirectorySeparatorChar
+          New-Item -ItemType Directory -Force $publishDir | Out-Null
+          msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
 
       - name: Package portable ZIP
         shell: pwsh
