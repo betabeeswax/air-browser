@@ -5,6 +5,7 @@ using Microsoft.Web.WebView2.Core;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using Windows.System;
+using System.Diagnostics;
 
 namespace AIRBrowser;
 
@@ -52,6 +53,23 @@ public sealed partial class MainWindow : Window
             await web.EnsureCoreWebView2Async(environment);
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
+            web.CoreWebView2.DownloadStarting += (_, download) =>
+            {
+                var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                Directory.CreateDirectory(downloads);
+                var safeName = Path.GetFileName(download.ResultFilePath);
+                if (string.IsNullOrWhiteSpace(safeName)) safeName = "AIR-Download";
+                download.ResultFilePath = Path.Combine(downloads, safeName);
+                StatusText.Text = "Downloading " + safeName;
+                download.StateChanged += (_, _) =>
+                {
+                    if (download.State == CoreWebView2DownloadState.Completed)
+                        StatusText.Text = "Download complete: " + safeName;
+                    else if (download.State == CoreWebView2DownloadState.Interrupted)
+                        StatusText.Text = "Download interrupted: " + safeName;
+                };
+            };
             web.CoreWebView2.DocumentTitleChanged += (_, _) =>
             {
                 tab.Header = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
@@ -195,6 +213,44 @@ public sealed partial class MainWindow : Window
         }
         catch { }
     }
+
+    private async void ShowBookmarks_Click(object sender, RoutedEventArgs e)
+    {
+        var items = _bookmarks.ToList();
+        var list = new ListView { ItemsSource = items.Select(b => b.Title + Environment.NewLine + b.Url).ToList(), IsItemClickEnabled = true, MaxHeight = 420 };
+        var dialog = new ContentDialog { Title = "Bookmarks — " + _profile, Content = list, CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        list.ItemClick += (_, args) => { var index = list.Items.IndexOf(args.ClickedItem); if (index >= 0) { Navigate(items[index].Url); dialog.Hide(); } };
+        await dialog.ShowAsync();
+    }
+
+    private async void ShowHistory_Click(object sender, RoutedEventArgs e)
+    {
+        var entries = new List<HistoryEntry>();
+        try
+        {
+            var path = Path.Combine(ProfileFolder, "history.json");
+            if (File.Exists(path)) entries = JsonSerializer.Deserialize<List<HistoryEntry>>(File.ReadAllText(path)) ?? new();
+        }
+        catch { }
+        entries = entries.OrderByDescending(h => h.VisitedAt).ToList();
+        var list = new ListView { ItemsSource = entries.Select(h => h.Title + Environment.NewLine + h.Url + Environment.NewLine + h.VisitedAt.ToLocalTime().ToString("g")).ToList(), IsItemClickEnabled = true, MaxHeight = 460 };
+        var dialog = new ContentDialog { Title = "Browsing history — " + _profile, Content = list, PrimaryButtonText = "Clear history", CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        list.ItemClick += (_, args) => { var index = list.Items.IndexOf(args.ClickedItem); if (index >= 0) { Navigate(entries[index].Url); dialog.Hide(); } };
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            File.WriteAllText(Path.Combine(ProfileFolder, "history.json"), "[]");
+            StatusText.Text = "Browsing history cleared";
+        }
+    }
+
+    private void ShowDownloads_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        Directory.CreateDirectory(folder);
+        Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
+    }
+
     private async void ProfilePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_changingProfile || ProfilePicker.SelectedItem is not string selected || selected == _profile) return;
