@@ -14,7 +14,7 @@ namespace AIRBrowser;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly string _root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AIR Browser");
+    private readonly string _root;
     private static readonly ConcurrentDictionary<string, Lazy<Task<CoreWebView2Environment>>> SharedWebViewEnvironments = new();
     private readonly ObservableCollection<string> _profiles = new() { "Personal", "Work" };
     private readonly ObservableCollection<string> _groups = new() { "Ungrouped" };
@@ -36,6 +36,10 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        var portableMarker = Path.Combine(AppContext.BaseDirectory, "portable.mode");
+        _root = File.Exists(portableMarker)
+            ? Path.Combine(AppContext.BaseDirectory, "AIR-Browser-Data")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AIR Browser");
         InitializeComponent();
         Title = "AIR Browser";
         ExtendsContentIntoTitleBar = false;
