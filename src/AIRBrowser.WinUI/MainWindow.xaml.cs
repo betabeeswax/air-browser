@@ -85,7 +85,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowStartPage(Grid host)
     {
-        var panel = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 8, 13, 22)), Padding = new Thickness(36) };
+        var panel = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 8, 13, 22)), Margin = new Thickness(36) };
         var stack = new StackPanel { Spacing = 18, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         stack.Children.Add(new TextBlock { Text = "Welcome to AIR", FontSize = 38, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) });
         stack.Children.Add(new TextBlock { Text = "A calmer way to browse.", FontSize = 17, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 150, 174, 205)) });
@@ -213,7 +213,7 @@ public sealed partial class MainWindow : Window
             Title = "AIR Browser settings",
             Content = "This native preview uses separate browser data folders for each profile. AIR Sync, Microsoft/Google account connections, password manager, tab groups, widget management and theme editor are planned next modules. No account credentials are collected by this preview.",
             CloseButtonText = "Close",
-            XamlRoot = Content.XamlRoot
+            XamlRoot = BrowserTabs.XamlRoot
         };
         await dialog.ShowAsync();
     }
