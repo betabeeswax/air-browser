@@ -61,11 +61,11 @@ public sealed partial class MainWindow : Window
                 if (string.IsNullOrWhiteSpace(safeName)) safeName = "AIR-Download";
                 download.ResultFilePath = Path.Combine(downloads, safeName);
                 StatusText.Text = "Downloading " + safeName;
-                download.StateChanged += (_, _) =>
+                download.DownloadOperation.StateChanged += (_, _) =>
                 {
-                    if (download.State == CoreWebView2DownloadState.Completed)
+                    if (download.DownloadOperation.State == CoreWebView2DownloadState.Completed)
                         StatusText.Text = "Download complete: " + safeName;
-                    else if (download.State == CoreWebView2DownloadState.Interrupted)
+                    else if (download.DownloadOperation.State == CoreWebView2DownloadState.Interrupted)
                         StatusText.Text = "Download interrupted: " + safeName;
                 };
             };
