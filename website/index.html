@@ -122,10 +122,26 @@
       margin-top: 40px;
     }
     footer a { color: var(--accent); text-decoration: none; }
+  
+    .topnav { display:flex; justify-content:center; gap:10px; padding:16px; background:#10151d; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+    .topnav a { color:var(--dim); text-decoration:none; padding:9px 16px; border-radius:8px; font-weight:600; }
+    .topnav a:hover, .topnav a.active { color:white; background:#202b3b; }
+    .builds-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
+    .build-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:26px; }
+    .build-card h3 { margin-bottom:8px; color:#60a5fa; }
+    .build-card p { color:var(--dim); margin-bottom:18px; min-height:48px; }
+    .build-meta { color:var(--dim); text-align:center; margin-bottom:22px; }
+    .build-note { color:var(--dim); text-align:center; margin-top:18px; font-size:.9rem; }
+    @media(max-width:600px) { .hero h1 {font-size:2.4rem;} .topnav {gap:2px;} .topnav a {padding:8px 11px;} }
   </style>
 </head>
 <body>
-  <div class="hero">
+  <nav class="topnav">
+    <a href="#home" class="active">Home</a>
+    <a href="#features">Features</a>
+    <a href="#builds">Builds</a>
+  </nav>
+  <div id="home" class="hero">
     <h1>AIR Browser</h1>
     <p>A clean, simple, privacy-focused browser with profiles, widgets, tab groups, and easy data export.</p>
     <div class="buttons">
@@ -134,7 +150,7 @@
     </div>
   </div>
 
-  <div class="section">
+  <div id="features" class="section">
     <h2>Features</h2>
     <div class="features">
       <div class="feature">
@@ -164,18 +180,46 @@
     </div>
   </div>
 
-  <div class="section">
-    <div class="download-box">
-      <h3>Get AIR Browser</h3>
-      <p>Download the ZIP, then double-click <strong>AIR-Browser.bat</strong> to open it like an app.<br>
-      Or just open index.html in any browser.</p>
-      <div class="buttons">
-        <a href="https://github.com/betabeeswax/air-browser/archive/refs/heads/main.zip" class="btn btn-primary">Download Latest</a>
-        <a href="https://github.com/betabeeswax/air-browser" class="btn btn-secondary">Source Code</a>
+  <section id="builds" class="section">
+    <h2>Download AIR Browser</h2>
+    <p class="build-meta" id="release-info">Loading the latest Windows build…</p>
+    <div class="builds-grid">
+      <div class="build-card">
+        <h3>Windows Installer</h3>
+        <p>Recommended. Installs AIR Browser and adds it to your Windows apps. New versions can update your app without deleting your browser data.</p>
+        <a id="installer-download" href="https://github.com/betabeeswax/air-browser/releases/latest/download/AIR-Browser-Setup.exe" class="btn btn-primary">Download Installer (.exe)</a>
+      </div>
+      <div class="build-card">
+        <h3>Portable Version</h3>
+        <p>Run AIR Browser without installing it. Keep the app folder and its AIR-Browser-Data folder together to preserve your data when updating.</p>
+        <a id="portable-download" href="https://github.com/betabeeswax/air-browser/releases/latest/download/AIR-Browser-Portable.zip" class="btn btn-primary">Download Portable (.zip)</a>
       </div>
     </div>
-  </div>
+    <p class="build-note">Windows 11 · 64-bit · Your browser data stays on your device.</p>
+  </section>
 
+  <script>
+    // Read release details from GitHub; download links always point to the latest release assets.
+    fetch("https://api.github.com/repos/betabeeswax/air-browser/releases/latest")
+      .then(response => { if (!response.ok) throw new Error("No published build yet"); return response.json(); })
+      .then(release => {
+        const date = release.published_at ? new Date(release.published_at).toLocaleDateString() : "";
+        document.getElementById("release-info").textContent =
+          (release.name || release.tag_name || "Latest build") + (date ? " · Published " + date : "");
+        const assets = release.assets || [];
+        const installer = assets.find(asset => asset.name === "AIR-Browser-Setup.exe");
+        const portable = assets.find(asset => asset.name === "AIR-Browser-Portable.zip");
+        if (installer) document.getElementById("installer-download").href = installer.browser_download_url;
+        if (portable) document.getElementById("portable-download").href = portable.browser_download_url;
+      })
+      .catch(() => {
+        document.getElementById("release-info").textContent = "Download the latest published Windows build from GitHub Releases.";
+      });
+    document.querySelectorAll(".topnav a").forEach(link => link.addEventListener("click", () => {
+      document.querySelectorAll(".topnav a").forEach(item => item.classList.remove("active"));
+      link.classList.add("active");
+    }));
+  </script>
   <footer>
     Made as part of the AIR project series · 
     <a href="https://github.com/betabeeswax/air-browser">GitHub</a>
