@@ -55,7 +55,15 @@ public sealed partial class MainWindow : Window
             _portableDataFallback = _portableMode;
             Directory.CreateDirectory(_root);
         }
-        InitializeComponent();
+        App.SetMainWindowXamlLoading(true);
+        try
+        {
+            InitializeComponent();
+        }
+        finally
+        {
+            App.SetMainWindowXamlLoading(false);
+        }
 
         // Register keyboard shortcuts in code instead of XAML. This avoids
         // WinUI XAML loader failures while keeping the same browser shortcuts.
