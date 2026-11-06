@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Windows.Foundation;
 using Windows.System;
 
 namespace AIRBrowser;
