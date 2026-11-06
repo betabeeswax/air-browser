@@ -222,8 +222,28 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = "WebView2 could not start: " + ex.Message;
-            ShowStartPage(host);
+            App.WriteDiagnostic("WebView2 initialization failed", ex);
+            StatusText.Text = "Browser engine could not start. Details saved to %LOCALAPPDATA%\\AIR Browser\\startup.log";
+            var errorPage = ShowStartPage(host);
+            var errorPanel = new StackPanel { Spacing = 8, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Center };
+            errorPanel.Children.Add(new TextBlock
+            {
+                Text = "AIR could not start its browser engine.",
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange),
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            errorPanel.Children.Add(new TextBlock
+            {
+                Text = ex.Message,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+            });
+            var installRuntime = new Button { Content = "Install Microsoft WebView2 Runtime" };
+            installRuntime.Click += async (_, _) =>
+                await Launcher.LaunchUriAsync(new Uri("https://developer.microsoft.com/microsoft-edge/webview2/"));
+            errorPanel.Children.Add(installRuntime);
+            errorPage.Children.Add(errorPanel);
         }
     }
 
