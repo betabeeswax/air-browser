@@ -4,13 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     Title="AIR Browser">
-    <Grid Background="#080D16" RowSpacing="0">
-        <Grid.KeyboardAccelerators>
-            <KeyboardAccelerator Key="T" Modifiers="Control" Invoked="NewTab_Accelerator"/>
-            <KeyboardAccelerator Key="L" Modifiers="Control" Invoked="FocusAddress_Accelerator"/>
-            <KeyboardAccelerator Key="D" Modifiers="Control" Invoked="Bookmark_Accelerator"/>
-            <KeyboardAccelerator Key="W" Modifiers="Control" Invoked="CloseTab_Accelerator"/>
-        </Grid.KeyboardAccelerators>
+    <Grid x:Name="RootLayout" Background="#080D16" RowSpacing="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
