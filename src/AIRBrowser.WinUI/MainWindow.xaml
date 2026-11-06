@@ -13,6 +13,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Top bar with logo -->
         <Grid Grid.Row="0" Background="#0D1726">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -21,33 +22,47 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center" Margin="12,8">
                 <Border Width="30" Height="30" CornerRadius="9" Background="#1768D6">
-                    <TextBlock Text="A" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Text="A" FontSize="20" FontWeight="Bold" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="AIR" FontSize="17" FontWeight="Bold" CharacterSpacing="160" Foreground="#EAF3FF" VerticalAlignment="Center"/>
+                <TextBlock Text="AIR" FontSize="17" FontWeight="Bold" CharacterSpacing="160"
+                           Foreground="#EAF3FF" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="0,8,12,8">
-                <ComboBox x:Name="ProfilePicker" Width="125" PlaceholderText="Profile" SelectionChanged="ProfilePicker_SelectionChanged"/>
-                <Button Content="＋ New tab" Click="NewTab_Click" ToolTipService.ToolTip="Open a new tab (Ctrl+T)"/>
-                <Button Content="☰" Click="ShowSettings_Click" ToolTipService.ToolTip="Settings"/>
+                <ComboBox x:Name="ProfilePicker" Width="125" PlaceholderText="Profile"
+                          SelectionChanged="ProfilePicker_SelectionChanged"/>
+                <Button Content="+ New tab" Click="NewTab_Click"
+                        ToolTipService.ToolTip="Open a new tab (Ctrl+T)"/>
+                <Button Content="Menu" Click="ShowSettings_Click"
+                        ToolTipService.ToolTip="Settings"/>
             </StackPanel>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" Background="#101C2D" HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+        <!-- Tab groups bar -->
+        <ScrollViewer Grid.Row="1" Background="#101C2D"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Enabled"
+                      VerticalScrollMode="Disabled">
             <StackPanel x:Name="TabGroupsBar" Orientation="Horizontal" Spacing="6" Padding="10,5"/>
         </ScrollViewer>
 
-        <controls:TabView x:Name="BrowserTabs" Grid.Row="2" Height="42" IsAddTabButtonVisible="True"
+        <!-- Tabs -->
+        <controls:TabView x:Name="BrowserTabs" Grid.Row="2" Height="42"
+                          IsAddTabButtonVisible="True"
                           AddTabButtonClick="BrowserTabs_AddTabButtonClick"
                           TabCloseRequested="BrowserTabs_TabCloseRequested"
                           SelectionChanged="BrowserTabs_SelectionChanged"
                           Background="#0D1726" Foreground="#EAF3FF"/>
 
+        <!-- Main content area -->
         <Grid Grid.Row="3" ColumnSpacing="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="210"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
             <Border Grid.Column="0" Background="#0D1726" BorderBrush="#1A2A40" BorderThickness="0,0,1,0">
                 <Grid RowSpacing="8" Margin="8">
                     <Grid.RowDefinitions>
@@ -58,28 +73,41 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <Button x:Name="SidebarToggle" Content="◀" Click="SidebarToggle_Click" ToolTipService.ToolTip="Shrink or expand sidebar"/>
-                        <TextBlock x:Name="SidebarTitle" Text="AIR SIDEBAR" FontSize="11" FontWeight="SemiBold" Foreground="#8FA8C8" VerticalAlignment="Center"/>
+                        <Button x:Name="SidebarToggle" Content="&lt;" Click="SidebarToggle_Click"
+                                ToolTipService.ToolTip="Shrink or expand sidebar"/>
+                        <TextBlock x:Name="SidebarTitle" Text="AIR SIDEBAR" FontSize="11"
+                                   FontWeight="SemiBold" Foreground="#8FA8C8" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
-                        <Button x:Name="HorizontalTabsButton" Content="↔" Click="HorizontalTabs_Click" ToolTipService.ToolTip="Horizontal tabs"/>
-                        <Button x:Name="VerticalTabsButton" Content="↕" Click="VerticalTabs_Click" ToolTipService.ToolTip="Vertical tabs"/>
+                        <Button x:Name="HorizontalTabsButton" Content="H" Click="HorizontalTabs_Click"
+                                ToolTipService.ToolTip="Horizontal tabs"/>
+                        <Button x:Name="VerticalTabsButton" Content="V" Click="VerticalTabs_Click"
+                                ToolTipService.ToolTip="Vertical tabs"/>
                     </StackPanel>
                     <StackPanel Grid.Row="2" Spacing="5">
                         <TextBlock x:Name="GroupLabel" Text="TAB GROUP" FontSize="10" Foreground="#8FA8C8"/>
-                        <ComboBox x:Name="TabGroupPicker" PlaceholderText="Move active tab to…" SelectionChanged="TabGroupPicker_SelectionChanged"/>
-                        <Button x:Name="NewGroupButton" Content="＋ Create tab group" Click="NewGroup_Click" HorizontalAlignment="Stretch"/>
+                        <ComboBox x:Name="TabGroupPicker" PlaceholderText="Move active tab to..."
+                                  SelectionChanged="TabGroupPicker_SelectionChanged"/>
+                        <Button x:Name="NewGroupButton" Content="+ Create tab group" Click="NewGroup_Click"
+                                HorizontalAlignment="Stretch"/>
                     </StackPanel>
-                    <ListView x:Name="VerticalTabs" Grid.Row="3" SelectionChanged="VerticalTabs_SelectionChanged"
+                    <ListView x:Name="VerticalTabs" Grid.Row="3"
+                              SelectionChanged="VerticalTabs_SelectionChanged"
                               Background="Transparent" BorderThickness="0" SelectionMode="Single"/>
                     <StackPanel Grid.Row="4" Spacing="3">
-                        <Button x:Name="BookmarksSideButton" Content="☆  Bookmarks" Click="ShowBookmarks_Click" HorizontalAlignment="Stretch"/>
-                        <Button x:Name="PasswordsSideButton" Content="🔑  Passwords" Click="ShowPasswords_Click" HorizontalAlignment="Stretch"/>
-                        <Button x:Name="HistorySideButton" Content="◷  History" Click="ShowHistory_Click" HorizontalAlignment="Stretch"/>
-                        <Button x:Name="DownloadsSideButton" Content="↓  Downloads" Click="ShowDownloads_Click" HorizontalAlignment="Stretch"/>
+                        <Button x:Name="BookmarksSideButton" Content="Bookmarks" Click="ShowBookmarks_Click"
+                                HorizontalAlignment="Stretch"/>
+                        <Button x:Name="PasswordsSideButton" Content="Passwords" Click="ShowPasswords_Click"
+                                HorizontalAlignment="Stretch"/>
+                        <Button x:Name="HistorySideButton" Content="History" Click="ShowHistory_Click"
+                                HorizontalAlignment="Stretch"/>
+                        <Button x:Name="DownloadsSideButton" Content="Downloads" Click="ShowDownloads_Click"
+                                HorizontalAlignment="Stretch"/>
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!-- Address bar + content -->
             <Grid Grid.Column="1" RowSpacing="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -87,24 +115,34 @@
                 </Grid.RowDefinitions>
                 <Grid Grid.Row="0" Background="#101C2D" Margin="8,5">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="BackButton" Content="←" Click="Back_Click" ToolTipService.ToolTip="Back"/>
-                    <Button x:Name="ForwardButton" Grid.Column="1" Content="→" Click="Forward_Click" ToolTipService.ToolTip="Forward"/>
-                    <Button Grid.Column="2" Content="↻" Click="Reload_Click" ToolTipService.ToolTip="Reload"/>
-                    <TextBox x:Name="AddressBox" Grid.Column="3" Margin="8,0" PlaceholderText="Search or enter a website address" KeyDown="AddressBox_KeyDown" VerticalContentAlignment="Center"/>
-                    <Button Grid.Column="4" Content="☆ Bookmark" Click="Bookmark_Click" ToolTipService.ToolTip="Save this page (Ctrl+D)"/>
-                    <ComboBox x:Name="SearchEnginePicker" Grid.Column="5" Width="112" Margin="8,0" SelectionChanged="SearchEnginePicker_SelectionChanged"/>
+                    <Button x:Name="BackButton" Content="&lt;-" Click="Back_Click" ToolTipService.ToolTip="Back"/>
+                    <Button x:Name="ForwardButton" Grid.Column="1" Content="-&gt;" Click="Forward_Click"
+                            ToolTipService.ToolTip="Forward"/>
+                    <Button Grid.Column="2" Content="R" Click="Reload_Click" ToolTipService.ToolTip="Reload"/>
+                    <TextBox x:Name="AddressBox" Grid.Column="3" Margin="8,0"
+                             PlaceholderText="Search or enter a website address"
+                             KeyDown="AddressBox_KeyDown" VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="4" Content="Bookmark" Click="Bookmark_Click"
+                            ToolTipService.ToolTip="Save this page (Ctrl+D)"/>
+                    <ComboBox x:Name="SearchEnginePicker" Grid.Column="5" Width="112" Margin="8,0"
+                              SelectionChanged="SearchEnginePicker_SelectionChanged"/>
                     <Button Grid.Column="6" Content="Go" Click="Go_Click"/>
                 </Grid>
                 <Grid Grid.Row="1" x:Name="ContentHost" Background="#080D16"/>
             </Grid>
         </Grid>
 
+        <!-- Status bar -->
         <Border Grid.Row="4" Background="#0D1726" Padding="12,6">
-            <TextBlock x:Name="StatusText" Text="Ready • AIR Browser" FontSize="12" Foreground="#8FA8C8"/>
+            <TextBlock x:Name="StatusText" Text="Ready - AIR Browser" FontSize="12" Foreground="#8FA8C8"/>
         </Border>
     </Grid>
 </Window>
