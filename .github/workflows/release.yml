@@ -46,6 +46,27 @@ jobs:
           New-Item -ItemType Directory -Force $publishDir | Out-Null
           msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
 
+      - name: Sign application binaries (when certificate is configured)
+        if: ${{ secrets.AIR_SIGNING_CERT_BASE64 != '' && secrets.AIR_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        env:
+          AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
+          $sdkRoot = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin"
+          $signTool = Get-ChildItem $sdkRoot -Filter signtool.exe -Recurse |
+            Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$signTool) { throw "Windows SDK SignTool was not found." }
+          $files = Get-ChildItem "publish" -Recurse -File | Where-Object { $_.Extension -in ".exe", ".dll" }
+          foreach ($file in $files) {
+            & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certPath /p $env:AIR_SIGNING_CERT_PASSWORD $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed: $($file.FullName)" }
+          }
+          Remove-Item $certPath -Force
+
       - name: Package portable ZIP
         shell: pwsh
         run: |
@@ -63,6 +84,24 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe"
           & $iscc installer/AIRBrowser.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Sign installer (when certificate is configured)
+        if: ${{ secrets.AIR_SIGNING_CERT_BASE64 != '' && secrets.AIR_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        env:
+          AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
+          $sdkRoot = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin"
+          $signTool = Get-ChildItem $sdkRoot -Filter signtool.exe -Recurse |
+            Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$signTool) { throw "Windows SDK SignTool was not found." }
+          & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certPath /p $env:AIR_SIGNING_CERT_PASSWORD "artifacts/AIR-Browser-Setup.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Installer signing failed." }
+          Remove-Item $certPath -Force
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
