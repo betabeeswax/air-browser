@@ -55,6 +55,14 @@ public sealed partial class MainWindow : Window
             Directory.CreateDirectory(_root);
         }
         InitializeComponent();
+
+        // Register keyboard shortcuts in code instead of XAML. This avoids
+        // WinUI XAML loader failures while keeping the same browser shortcuts.
+        AddKeyboardShortcut(VirtualKey.T, NewTab_Accelerator);
+        AddKeyboardShortcut(VirtualKey.L, FocusAddress_Accelerator);
+        AddKeyboardShortcut(VirtualKey.D, Bookmark_Accelerator);
+        AddKeyboardShortcut(VirtualKey.W, CloseTab_Accelerator);
+
         Title = "AIR Browser";
         ExtendsContentIntoTitleBar = false;
         Directory.CreateDirectory(_root);
@@ -74,6 +82,17 @@ public sealed partial class MainWindow : Window
         else if (_portableMode)
             StatusText.Text = "Portable mode • data is stored beside AIR Browser.";
         _ = AddTabAsync();
+    }
+
+    private void AddKeyboardShortcut(VirtualKey key, TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler)
+    {
+        var accelerator = new KeyboardAccelerator
+        {
+            Key = key,
+            Modifiers = VirtualKeyModifiers.Control
+        };
+        accelerator.Invoked += handler;
+        RootLayout.KeyboardAccelerators.Add(accelerator);
     }
 
     private static bool TryPrepareWritableFolder(string folder)
