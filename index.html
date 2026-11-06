@@ -48,7 +48,7 @@
 <div><div class="eyebrow">Get AIR Browser</div><h2>Download for Windows.</h2><p>Choose the Windows installer for a normal setup, or download the portable ZIP and extract it. Browser data is stored locally in your Windows user profile.</p>
 <div class="actions" style="justify-content:flex-start;margin-bottom:8px"><a id="installerButton" class="btn primary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="installerButtonText">Windows installer</span></a><a id="portableButton" class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases/latest" aria-disabled="true">↓ <span id="portableButtonText">Portable ZIP</span></a><a class="btn secondary" href="https://github.com/betabeeswax/air-browser/releases" target="_blank" rel="noopener">All releases ↗</a></div>
 <div id="downloadVersion" class="status">The download button will activate when a Windows build is published.</div></div>
-<div class="requirements"><h3>System requirements</h3><ul><li>Windows 11</li><li>64-bit (x64) computer</li><li>Internet connection for websites</li><li>About 200 MB of free space recommended</li></ul><p class="fine">AIR Browser currently targets Windows 11 x64. The portable download is a ZIP containing the application files; it is not a single-file EXE.</p></div>
+<div class="requirements"><h3>System requirements</h3><ul><li>Windows 11</li><li>64-bit (x64) computer</li><li>Internet connection for websites</li><li>About 200 MB of free space recommended</li></ul><p class="fine">AIR Browser currently targets Windows 11 x64. The portable app download is a ZIP containing AIRBrowser.WinUI.exe and its required files. Extract it, then open AIRBrowser.WinUI.exe; it is not a single-file EXE.</p></div>
 </div>
 </section>
 <section class="section wrap">
@@ -99,7 +99,7 @@ fetch("https://api.github.com/repos/"+repo+"/releases/latest",{headers:{Accept:"
 .then(release=>{
  const assets=release.assets||[];
  const setup=assets.find(a=>a.name==="AIR-Browser-Setup.exe");
- const zip=assets.find(a=>a.name==="AIR-Browser-Windows11-Portable.zip");
+ const zip=assets.find(a=>a.name==="AIR-Browser-Portable.zip");
  if(setup){installer.href=setup.browser_download_url;installer.removeAttribute("aria-disabled");document.getElementById("installerButtonText").textContent="Download installer";hero.href=setup.browser_download_url;hero.removeAttribute("aria-disabled");document.getElementById("heroDownloadText").textContent="Download for Windows";}
  if(zip){portable.href=zip.browser_download_url;portable.removeAttribute("aria-disabled");document.getElementById("portableButtonText").textContent="Download portable ZIP";}
  if(!setup&&!zip){unavailable("Latest release found, but its Windows downloads are not attached yet.");return;}
