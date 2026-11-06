@@ -24,6 +24,8 @@ jobs:
     runs-on: windows-2022
     env:
       AIR_VERSION: 0.2.${{ github.run_number }}
+    AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+    AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -47,7 +49,7 @@ jobs:
           msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
 
       - name: Sign application binaries (when certificate is configured)
-        if: ${{ secrets.AIR_SIGNING_CERT_BASE64 != '' && secrets.AIR_SIGNING_CERT_PASSWORD != '' }}
+        if: ${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
         shell: pwsh
         env:
           AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
