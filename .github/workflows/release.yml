@@ -48,6 +48,27 @@ jobs:
           New-Item -ItemType Directory -Force $publishDir | Out-Null
           msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
 
+      - name: Download and verify fixed WebView2 runtime
+        shell: pwsh
+        run: |
+          $version = "156.0.4314.56"
+          $cab = Join-Path $env:RUNNER_TEMP "Microsoft.WebView2.FixedVersionRuntime.$version.x64.cab"
+          $url = "https://github.com/ciderapp/WebView2-Archives/releases/download/$version/Microsoft.WebView2.FixedVersionRuntime.$version.x64.cab"
+          $expectedSha256 = "f37590235285774860146bdece4439532e3574303c0508ae4cf457ea584f125f"
+          Invoke-WebRequest -Uri $url -OutFile $cab
+          $actualSha256 = (Get-FileHash -Path $cab -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Fixed WebView2 CAB checksum mismatch. Expected $expectedSha256, got $actualSha256"
+          }
+          $fixedRoot = Join-Path $PWD "publish/FixedRuntime"
+          New-Item -ItemType Directory -Force $fixedRoot | Out-Null
+          & expand.exe $cab "-F:*" $fixedRoot
+          if ($LASTEXITCODE -ne 0) { throw "Could not extract the fixed WebView2 runtime CAB." }
+          $runtimeExe = Join-Path $fixedRoot "Microsoft.WebView2.FixedVersionRuntime.$version.x64/msedgewebview2.exe"
+          if (!(Test-Path $runtimeExe)) { throw "The extracted fixed WebView2 runtime is incomplete." }
+          Set-Content -Path (Join-Path $PWD "publish/FixedRuntimeVersion.txt") -Value $version -NoNewline
+          Write-Host "Bundled WebView2 Fixed Version $version ($actualSha256)"
+
       - name: Sign application binaries (when certificate is configured)
         if: ${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
         shell: pwsh
@@ -114,6 +135,7 @@ jobs:
             Native Windows 11 AIR Browser build.
             - Installer: AIR-Browser-Setup.exe (updates preserve installed browser data)
             - Portable: AIR-Browser-Portable.zip (stores browser data beside the app)
+            - Bundled WebView2 Fixed Version runtime: 156.0.4314.56 x64 (no separate Evergreen runtime required)
             Built from commit ${{ github.sha }}.
           files: |
             artifacts/AIR-Browser-Setup.exe
