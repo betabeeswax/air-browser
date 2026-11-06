@@ -96,10 +96,28 @@ public sealed partial class MainWindow : Window
     {
         var webViewData = Path.Combine(_root, "WebView2");
         Directory.CreateDirectory(webViewData);
+
+        // AIR ships its own pinned WebView2 engine so it does not depend on
+        // the Evergreen Runtime being installed separately on Windows.
+        const string fixedRuntimeVersion = "156.0.4314.56";
+        var fixedRuntimeFolder = Path.Combine(
+            AppContext.BaseDirectory,
+            "FixedRuntime",
+            $"Microsoft.WebView2.FixedVersionRuntime.{fixedRuntimeVersion}.x64");
+        var runtimeExecutable = Path.Combine(fixedRuntimeFolder, "msedgewebview2.exe");
+        if (!File.Exists(runtimeExecutable))
+            throw new FileNotFoundException(
+                $"AIR's bundled WebView2 runtime ({fixedRuntimeVersion}) is missing. Reinstall AIR Browser.",
+                runtimeExecutable);
+
+        var environmentKey = webViewData + "|" + fixedRuntimeFolder;
         var lazy = SharedWebViewEnvironments.GetOrAdd(
-            webViewData,
-            folder => new Lazy<Task<CoreWebView2Environment>>(
-                async () => await CoreWebView2Environment.CreateWithOptionsAsync(null, folder, new CoreWebView2EnvironmentOptions())));
+            environmentKey,
+            _ => new Lazy<Task<CoreWebView2Environment>>(
+                async () => await CoreWebView2Environment.CreateWithOptionsAsync(
+                    fixedRuntimeFolder,
+                    webViewData,
+                    new CoreWebView2EnvironmentOptions())));
         return lazy.Value;
     }
 
