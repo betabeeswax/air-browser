@@ -3,6 +3,8 @@ using Microsoft.Web.WebView2.WinForms;
 using System.Text.Json;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -114,6 +116,9 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();break;
+                case "providerSignIn": await StartProviderSignInAsync(Get("provider"));break;
+                case "syncExport": ExportSyncData();break;
+                case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))ImportSyncData(syncPayload);break;
                 case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
                 case "newTab": await AddTabAsync();break;
                 case "select": Select(Get("id"));break;
@@ -226,8 +231,100 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private void GroupTabs(string source,string target){var a=_tabs.FirstOrDefault(t=>t.Id==source);var b=_tabs.FirstOrDefault(t=>t.Id==target);if(a is null||b is null||a==b)return;var group=b.Group!="Ungrouped"?b.Group:a.Group!="Ungrouped"?a.Group:"Group "+(_groups.Count);if(!_groups.Contains(group))_groups.Add(group);a.Group=group;b.Group=group;_tabs.Remove(a);var targetIndex=_tabs.IndexOf(b);_tabs.Insert(targetIndex+1,a);SetStatus("Tabs grouped together");PushState();}
     private void MoveToGroup(string id,string group){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;if(group!="Ungrouped"&&!_groups.Contains(group))_groups.Add(group);t.Group=group;PushState();}
     private void SelectGroup(string group){var t=_tabs.FirstOrDefault(x=>x.Group==group);if(t is not null)Select(t);}
+
+    private async Task StartProviderSignInAsync(string providerName)
+    {
+        var provider = providerName.Equals("Microsoft", StringComparison.OrdinalIgnoreCase) ? "azure" : "google";
+        var listener = new HttpListener();
+        try
+        {
+            using var probe = new TcpListener(IPAddress.Loopback, 0);
+            probe.Start();
+            var port = ((IPEndPoint)probe.LocalEndpoint).Port;
+            probe.Stop();
+            var redirect = $"http://localhost:{port}/auth/callback/";
+            listener.Prefixes.Add(redirect);
+            listener.Start();
+
+            var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
+            var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+            var authUrl = AIR_AUTH_URL + "/auth/v1/authorize?provider=" + provider +
+                "&redirect_to=" + Uri.EscapeDataString(redirect) +
+                "&code_challenge=" + Uri.EscapeDataString(challenge) +
+                "&code_challenge_method=s256" +
+                (provider == "azure" ? "&scopes=email" : "");
+            SetStatus("Opening " + providerName + " sign-in…");
+            Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
+
+            var context = await listener.GetContextAsync().WaitAsync(TimeSpan.FromMinutes(4));
+            var code = context.Request.QueryString["code"];
+            var error = context.Request.QueryString["error_description"] ?? context.Request.QueryString["error"];
+            var page = string.IsNullOrWhiteSpace(code)
+                ? "<h2>AIR sign-in did not finish</h2><p>You can close this window and try again in AIR Browser.</p>"
+                : "<h2>You're signed in to AIR</h2><p>You can return to AIR Browser now.</p>";
+            var bytes = Encoding.UTF8.GetBytes("<!doctype html><meta charset='utf-8'><title>AIR Account</title><body style='font:18px Segoe UI;background:#101827;color:white;padding:48px'>" + page + "</body>");
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.ContentLength64 = bytes.Length;
+            await context.Response.OutputStream.WriteAsync(bytes);
+            context.Response.Close();
+
+            if (string.IsNullOrWhiteSpace(code))
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "Sign-in was cancelled or no authorization code was returned." : error);
+
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            var body = JsonSerializer.Serialize(new { auth_code = code, code_verifier = verifier });
+            using var response = await http.PostAsync(AIR_AUTH_URL + "/auth/v1/token?grant_type=pkce",
+                new StringContent(body, Encoding.UTF8, "application/json"));
+            var json = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException("AIR Account sign-in failed: " + json);
+            using var sessionDoc = JsonDocument.Parse(json);
+            Send("authSession", sessionDoc.RootElement.Clone());
+            SetStatus("Signed in to AIR Account");
+        }
+        catch (TimeoutException) { SetStatus("Sign-in timed out. Please try again."); }
+        catch (Exception ex) { SetStatus("AIR Account sign-in: " + ex.Message); Send("toast", new { value = "Sign-in could not finish: " + ex.Message }); }
+        finally { if (listener.IsListening) listener.Stop(); listener.Close(); }
+    }
+
+    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+','-').Replace('/','_');
+
+    private void ExportSyncData()
+    {
+        try
+        {
+            Directory.CreateDirectory(ProfileFolder);
+            List<string> ReadList(string name)
+            {
+                var path = Path.Combine(ProfileFolder, name);
+                return File.Exists(path) ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(path)) ?? new() : new();
+            }
+            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json") });
+        }
+        catch (Exception ex) { SetStatus("Could not prepare AIR Sync data: " + ex.Message); }
+    }
+
+    private void ImportSyncData(JsonElement payload)
+    {
+        try
+        {
+            Directory.CreateDirectory(ProfileFolder);
+            foreach (var name in new[] { "bookmarks", "history" })
+            {
+                if (!payload.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array) continue;
+                var values = value.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String)
+                    .Select(x => x.GetString() ?? "").Where(x => x.Length < 4096).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                File.WriteAllText(Path.Combine(ProfileFolder, name + ".json"), JsonSerializer.Serialize(values));
+            }
+            SetStatus("AIR Sync profile restored");
+            Send("toast", new { value = "This profile was restored from AIR Sync." });
+        }
+        catch (Exception ex) { SetStatus("Could not restore AIR Sync data: " + ex.Message); }
+    }
+
     private void SaveBookmark(){if(_active?.View.CoreWebView2?.Source is not string url)return;var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();if(!list.Contains(url))list.Add(url);File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus("Bookmark saved");}
 
+    private const string AIR_AUTH_URL = "https://rkwpxzotvneoavrczkzo.supabase.co";
     private string PasswordVaultFile => Path.Combine(ProfileFolder, "passwords.dpapi");
     private void ExportBookmarks()
     {
