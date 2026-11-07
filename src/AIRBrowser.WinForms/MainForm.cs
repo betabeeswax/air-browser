@@ -39,10 +39,10 @@ public sealed class MainForm : Form
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
     private static string Safe(string s)=>string.Concat(s.Select(c=>char.IsLetterOrDigit(c)||c=='-'?c:'_'));
 
-    public MainForm()
+    public MainForm(string? initialUrl = null, string? profile = null)
     {
         Text="AIR Browser"; Name="AIRBrowser"; ShowIcon=true; MinimumSize=new Size(900,600); Size=new Size(1440,900);
-        StartPosition=FormStartPosition.CenterScreen; BackColor=Color.FromArgb(8,13,22); Icon=LoadIcon();
+        StartPosition=FormStartPosition.CenterScreen; BackColor=Color.FromArgb(8,13,22); Icon=LoadIcon(); if (!string.IsNullOrWhiteSpace(profile)) _profile = profile;
         _portable=File.Exists(Path.Combine(AppContext.BaseDirectory,"portable.mode"));
         var portable=_portable;
         var portableRoot=Path.Combine(AppContext.BaseDirectory,"AIR-Browser-Data");
@@ -69,7 +69,7 @@ public sealed class MainForm : Form
             }
             _shellPanel.Height += Math.Sign(delta) * Math.Max(8, Math.Abs(delta) / 4);
         };
-        Shown+=async (_,_)=>{await InitializeShellAsync();StartAutomaticUpdates();};
+        Shown+=async (_,_)=>{await InitializeShellAsync(initialUrl);StartAutomaticUpdates();};
         FormClosing+=(_,_)=>{_overlayAnimation.Stop();_overlayAnimation.Dispose();_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
     }
 
@@ -86,7 +86,7 @@ public sealed class MainForm : Form
         _environments[name]=env;return env;
     }
 
-    private async Task InitializeShellAsync()
+    private async Task InitializeShellAsync(string? initialUrl = null)
     {
         try{
             var env=await EnvironmentForAsync("AIR-Interface");
@@ -98,7 +98,7 @@ public sealed class MainForm : Form
             if(!File.Exists(html))throw new FileNotFoundException("AIR Browser interface files are missing.",html);
             _shell.CoreWebView2.Navigate(new Uri(html).AbsoluteUri);
             _shellReady=true;_status="Ready";
-            await AddTabAsync();
+            await AddTabAsync(initialUrl);
         }catch(Exception ex){MessageBox.Show(this,"AIR Browser could not initialize its interface or Chromium engine.\n\n"+ex.Message,"AIR Browser",MessageBoxButtons.OK,MessageBoxIcon.Error);}
     }
 
@@ -121,6 +121,7 @@ public sealed class MainForm : Form
                 case "bookmark": SaveBookmark();break;
                 case "newGroup": CreateGroup(Get("name"));break;
                 case "groupTabs": GroupTabs(Get("source"),Get("target"));break;
+                case "detachTab": { var tab = _tabs.FirstOrDefault(x => x.Id == Get("id")); var url = tab?.View.CoreWebView2?.Source; if (tab is not null && !string.IsNullOrWhiteSpace(url)) { var window = new MainForm(url, _profile); window.Show(); Close(tab.Id); } break; }
                 case "moveToGroup": MoveToGroup(Get("id"),Get("group"));break;
                 case "selectGroup": SelectGroup(Get("group"));break;
                 case "profile": SwitchProfile(Get("name"));break;
