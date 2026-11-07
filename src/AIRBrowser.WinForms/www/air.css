@@ -72,3 +72,29 @@ body,html{height:100%;min-height:100%}
 .tab-strip #newTab{order:1;flex:0 0 28px;}
 .tab-strip .tab:not(.active){cursor:pointer;}
 .tab-strip .tab.active{cursor:default;}
+
+/* AIR Account sign-in and sign-up page */
+#accountPanel{width:min(430px,calc(100vw - 28px));max-height:calc(100vh - 88px);overflow-y:auto;overscroll-behavior:contain;padding:16px}
+.account-body{display:grid;gap:11px;padding:4px 8px 10px}
+.account-mark{width:58px;height:58px;display:grid;place-items:center;margin:0 auto 2px;border-radius:19px;background:linear-gradient(145deg,#3798ff,#124a9d);box-shadow:0 12px 28px #1768d655;color:white;font-size:34px;font-weight:800}
+.account-body h3{text-align:center;margin:0;font-size:21px}
+.account-body>p{text-align:center;margin:0 auto 5px;max-width:340px;color:#9bb1cc;font-size:12px;line-height:1.55}
+.account-mode{display:grid;grid-template-columns:1fr 1fr;padding:4px;background:#0e1a2b;border:1px solid #2b405b;border-radius:11px;gap:4px}
+.account-mode button{border:0;background:transparent;padding:9px;font-size:12px;color:#9db3ce}
+.account-mode button.selected{background:#285b91;color:white;box-shadow:0 3px 10px #0003}
+.account-body>label{display:grid;gap:6px;color:#b8cbe1;font-size:11px}
+.account-body>label input{width:100%;height:38px;border:1px solid #3a5270;border-radius:9px;background:#0d1929;color:#f1f6ff;padding:0 12px;outline:none}
+.account-body>label input:focus{border-color:#4c9be9}
+.account-submit{width:100%;height:39px;margin-top:2px;background:#1768d6;border-color:#3289e5;font-weight:700}
+.account-provider{width:100%;height:39px;margin:0;display:flex;justify-content:center;align-items:center;gap:10px;background:#1a2c43;border:1px solid #3a5270;font-size:12px}
+.provider-icon{font-weight:800;font-size:16px;color:#8fc5ff}
+.microsoft-icon{color:#78b9ff}
+.account-separator{display:flex;align-items:center;gap:10px;color:#7189a7;font-size:9px;letter-spacing:1px}
+.account-separator:before,.account-separator:after{content:"";height:1px;flex:1;background:#2c415d}
+.account-guest{width:100%;border:0;background:transparent;color:#8fc5ff;font-size:12px;padding:8px}
+.account-guest span{padding-left:5px}
+.account-note{font-size:10px!important;line-height:1.5!important;margin:0!important}
+.account-signed{display:grid;gap:8px;padding:12px;background:#1a3048;border:1px solid #345577;border-radius:10px;font-size:12px}
+.account-signed .secondary{margin:0}
+#accountPanel .hidden{display:none!important}
+body.light #accountPanel .account-body>label input{background:white;color:#14243a}
