@@ -558,7 +558,7 @@ public sealed partial class MainWindow : Window
         catch { }
         entries = entries.OrderByDescending(h => h.VisitedAt).ToList();
         var list = new ListView { ItemsSource = entries.Select(h => h.Title + Environment.NewLine + h.Url + Environment.NewLine + h.VisitedAt.ToLocalTime().ToString("g")).ToList(), IsItemClickEnabled = true, MaxHeight = 460 };
-        var dialog = new ContentDialog { Title = "Browsing history — " + _profile, Content = list, PrimaryButtonText = "Clear history", CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        var dialog = new ContentDialog { Title = "Browsing history — " + _profile, Content = list, PrimaryButtonText = "Clear history", CloseButtonText = "Close", XamlRoot = RootLayout.XamlRoot };
         list.ItemClick += (_, args) => { var index = list.Items.IndexOf(args.ClickedItem); if (index >= 0) { Navigate(entries[index].Url); dialog.Hide(); } };
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
@@ -577,7 +577,7 @@ public sealed partial class MainWindow : Window
     private async void NewGroup_Click(object sender, RoutedEventArgs e)
     {
         var nameBox = new TextBox { PlaceholderText = "Example: School, Shopping, Research", MaxLength = 32 };
-        var dialog = new ContentDialog { Title = "Create a tab group", Content = nameBox, PrimaryButtonText = "Create group", CloseButtonText = "Cancel", XamlRoot = BrowserTabs.XamlRoot, DefaultButton = ContentDialogButton.Primary };
+        var dialog = new ContentDialog { Title = "Create a tab group", Content = nameBox, PrimaryButtonText = "Create group", CloseButtonText = "Cancel", XamlRoot = RootLayout.XamlRoot, DefaultButton = ContentDialogButton.Primary };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
         var name = nameBox.Text.Trim();
         if (name.Length == 0) return;
@@ -654,7 +654,7 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(new TextBlock { Text = origin, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         panel.Children.Add(userBox);
         panel.Children.Add(passBox);
-        var dialog = new ContentDialog { Title = "Save password?", Content = panel, PrimaryButtonText = "Save password", CloseButtonText = "Not now", XamlRoot = BrowserTabs.XamlRoot, DefaultButton = ContentDialogButton.Primary };
+        var dialog = new ContentDialog { Title = "Save password?", Content = panel, PrimaryButtonText = "Save password", CloseButtonText = "Not now", XamlRoot = RootLayout.XamlRoot, DefaultButton = ContentDialogButton.Primary };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
         var record = new PasswordRecord(origin, userBox.Text.Trim(), passBox.Password);
         _passwords[origin + "|" + record.Username] = record;
@@ -674,7 +674,7 @@ public sealed partial class MainWindow : Window
     {
         var records = _passwords.Values.OrderBy(p => p.Origin).ToList();
         var list = new ListView { ItemsSource = records.Select(p => p.Origin + Environment.NewLine + (string.IsNullOrEmpty(p.Username) ? "(no username)" : p.Username)).ToList(), MaxHeight = 360 };
-        var dialog = new ContentDialog { Title = "Saved passwords (" + records.Count + ")", Content = list, PrimaryButtonText = "Fill selected", SecondaryButtonText = "Delete selected", CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        var dialog = new ContentDialog { Title = "Saved passwords (" + records.Count + ")", Content = list, PrimaryButtonText = "Fill selected", SecondaryButtonText = "Delete selected", CloseButtonText = "Close", XamlRoot = RootLayout.XamlRoot };
         var result = await dialog.ShowAsync();
         var index = list.SelectedIndex;
         if (index < 0 || index >= records.Count) return;
@@ -728,7 +728,7 @@ public sealed partial class MainWindow : Window
         buttons.Children.Add(vertical);
         orientation.Children.Add(buttons);
         orientation.Children.Add(new TextBlock { Text = "Password manager saves logins only after you approve. Passwords are encrypted for this Windows user account and are never synced in this preview.", TextWrapping = TextWrapping.Wrap });
-        var dialog = new ContentDialog { Title = "AIR Browser settings", Content = orientation, CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        var dialog = new ContentDialog { Title = "AIR Browser settings", Content = orientation, CloseButtonText = "Close", XamlRoot = RootLayout.XamlRoot };
         await dialog.ShowAsync();
     }
 
