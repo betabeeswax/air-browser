@@ -30,7 +30,7 @@ function renderProfiles(){const meta=profileMeta();const sel=$("profile");const 
 function applySettings(){const s=JSON.parse(localStorage.getItem("airSettings")||"{}");$("theme").value=s.theme||"dark";$("compactTabs").checked=!!s.compactTabs;$("showBookmarks").checked=s.showBookmarks!==false;$("confirmClose").checked=s.confirmClose!==false;$("restoreTabs").checked=!!s.restoreTabs;$("defaultEngine").value=s.defaultEngine||"Bing";$("suggestions").checked=s.suggestions!==false;$("blockPopups").checked=s.blockPopups!==false;$("doNotTrack").checked=!!s.doNotTrack;document.body.classList.toggle("light",s.theme==="light");document.body.dataset.theme=s.theme||"dark";document.body.classList.toggle("compact",!!s.compactTabs);$("bookmark").classList.toggle("hidden",s.showBookmarks===false)}
 function saveSettings(){const s={};["theme","compactTabs","showBookmarks","confirmClose","restoreTabs","defaultEngine","suggestions","blockPopups","doNotTrack"].forEach(id=>{const e=$(id);s[id]=e.type==="checkbox"?e.checked:e.value});localStorage.setItem("airSettings",JSON.stringify(s));applySettings();toast("Settings saved")}
 $("go").onclick=navigate;$("address").addEventListener("keydown",e=>{if(e.key==="Enter")navigate()});$("newTab").onclick=()=>send("newTab");$("back").onclick=()=>send("back");$("forward").onclick=()=>send("forward");$("reload").onclick=()=>send("reload");$("bookmark").onclick=()=>send("bookmark");$("profile").onclick=()=>{renderProfiles();showPanel("profilesPanel")};$("linkAccount").onclick=()=>showPanel("accountPanel");$("menu").onclick=()=>{if($("menuPanel").classList.contains("hidden"))showPanel("menuPanel");else hidePanels()};
-document.addEventListener("click",e=>{const action=e.target.closest("[data-action]")?.dataset.action;if(action){hidePanels();({newTab:()=>send("newTab"),bookmarks:()=>send("showBookmarks"),history:()=>send("showHistory"),downloads:()=>send("downloads"),update:()=>send("update"),settings:()=>showPanel("settingsPanel"),profiles:()=>{renderProfiles();showPanel("profilesPanel")},about:()=>{showPanel("settingsPanel");document.querySelector('[data-section="about"]').click()}})[action]?.();return}const close=e.target.closest("[data-close]")?.dataset.close;if(close){hidePanels();return}if(!e.target.closest(".popover")&&!e.target.closest("#menu")&&!e.target.closest("#profile")&&![...document.querySelectorAll(".popover")].every(p=>p.classList.contains("hidden")))hidePanels()});
+document.addEventListener("click",e=>{const action=e.target.closest("[data-action]")?.dataset.action;if(action){hidePanels();({newTab:()=>send("newTab"),duplicateTab:()=>send("duplicateTab"),copyLink:()=>send("copyLink"),bookmarks:()=>send("showBookmarks"),history:()=>send("showHistory"),downloads:()=>send("downloads"),update:()=>send("update"),settings:()=>showPanel("settingsPanel"),profiles:()=>{renderProfiles();showPanel("profilesPanel")},about:()=>{showPanel("settingsPanel");document.querySelector('[data-section="about"]').click()}})[action]?.();return}const close=e.target.closest("[data-close]")?.dataset.close;if(close){hidePanels();return}if(!e.target.closest(".popover")&&!e.target.closest("#menu")&&!e.target.closest("#profile")&&![...document.querySelectorAll(".popover")].every(p=>p.classList.contains("hidden")))hidePanels()});
 document.querySelectorAll("[data-section]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-section]").forEach(x=>x.classList.toggle("selected",x===b));document.querySelectorAll("[data-page]").forEach(x=>x.classList.toggle("hidden",x.dataset.page!==b.dataset.section))});
 ["theme","compactTabs","showBookmarks","confirmClose","restoreTabs","defaultEngine","suggestions","blockPopups","doNotTrack"].forEach(id=>$(id).addEventListener("change",saveSettings));
 $("createProfile").onclick=()=>{const name=$("newProfileName").value.trim();if(name){send("createProfile",{name});$("newProfileName").value="";hidePanels()}};
@@ -41,3 +41,17 @@ $("accountSignIn").onclick=()=>toast("AIR Account sign-in is not connected yet")
 ["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
 window.chrome?.webview?.addEventListener("message",e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value)});
 applySettings();send("ready");
+document.addEventListener("keydown",e=>{
+ const mod=e.ctrlKey||e.metaKey;
+ if(!mod)return;
+ const key=e.key.toLowerCase();
+ if(key==="t"){e.preventDefault();send("newTab")}
+ else if(key==="l"){e.preventDefault();$("address").focus();$("address").select()}
+ else if(key==="w"){e.preventDefault();if(active)send("close",{id:active})}
+ else if(key==="r"){e.preventDefault();send("reload")}
+ else if(key==="d"){e.preventDefault();send("bookmark")}
+ else if(key==="k"&&e.shiftKey){e.preventDefault();send("duplicateTab")}
+ else if(key==="="||key==="+"){e.preventDefault();send("zoomIn")}
+ else if(key==="-"){e.preventDefault();send("zoomOut")}
+ else if(key==="0"){e.preventDefault();send("zoomReset")}
+});
