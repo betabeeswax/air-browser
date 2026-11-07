@@ -12,7 +12,7 @@ public sealed class MainForm : Form
     private readonly string _runtime;
     private readonly bool _portable;
     private readonly WebView2 _shell = new() { Dock = DockStyle.Fill };
-    private readonly Panel _shellPanel = new() { Dock = DockStyle.None, Height = 67 };
+    private readonly Panel _shellPanel = new() { Dock = DockStyle.None, Height = 67, BackColor = Color.Transparent };
     private readonly System.Windows.Forms.Timer _overlayAnimation = new() { Interval = 15 };
     private int _overlayTarget = 67;
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
@@ -123,6 +123,7 @@ public sealed class MainForm : Form
                 case "downloads": Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads")){UseShellExecute=true});break;
                 case "clearData": if(_active?.View.CoreWebView2 is not null){await _active.View.CoreWebView2.Profile.ClearBrowsingDataAsync();SetStatus("Browsing data cleared");}break;
                 case "update": await CheckForUpdatesAsync(true);break;
+                case "setDefaultBrowser": Process.Start(new ProcessStartInfo("ms-settings:defaultapps") { UseShellExecute = true });break;
             }
         }catch(Exception ex){SetStatus("Action failed: "+ex.Message);}
     }
