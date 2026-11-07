@@ -10,6 +10,7 @@ public sealed class MainForm : Form
 {
     private readonly string _root;
     private readonly string _runtime;
+    private readonly bool _portable;
     private readonly WebView2 _shell = new() { Dock = DockStyle.Fill };
     private readonly Panel _shellPanel = new() { Dock = DockStyle.Top, Height = 67 };
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
@@ -32,7 +33,8 @@ public sealed class MainForm : Form
     {
         Text="AIR Browser"; Name="AIRBrowser"; ShowIcon=true; MinimumSize=new Size(900,600); Size=new Size(1440,900);
         StartPosition=FormStartPosition.CenterScreen; BackColor=Color.FromArgb(8,13,22); Icon=LoadIcon();
-        var portable=File.Exists(Path.Combine(AppContext.BaseDirectory,"portable.mode"));
+        _portable=File.Exists(Path.Combine(AppContext.BaseDirectory,"portable.mode"));
+        var portable=_portable;
         var portableRoot=Path.Combine(AppContext.BaseDirectory,"AIR-Browser-Data");
         _root=portable&&CanWrite(portableRoot)?portableRoot:Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AIR Browser");
         Directory.CreateDirectory(_root);
@@ -80,6 +82,7 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();break;
+                case "overlay": _shellPanel.Height = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; break;
                 case "newTab": await AddTabAsync();break;
                 case "select": Select(Get("id"));break;
                 case "close": Close(Get("id"));break;
@@ -212,9 +215,10 @@ public sealed class MainForm : Form
                 return;
             }
 
+            var assetName = _portable ? "AIR-Browser-Portable.zip" : "AIR-Browser-Setup.exe";
             var asset = doc.RootElement.GetProperty("assets").EnumerateArray()
-                .FirstOrDefault(x => x.GetProperty("name").GetString() == "AIR-Browser-Setup.exe");
-            if (asset.ValueKind == JsonValueKind.Undefined) { if (manual) MessageBox.Show(this, "A new version was found, but its installer is not available yet.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+                .FirstOrDefault(x => x.GetProperty("name").GetString() == assetName);
+            if (asset.ValueKind == JsonValueKind.Undefined) { if (manual) MessageBox.Show(this, "A new version was found, but its update package is not available yet.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             var url = asset.GetProperty("browser_download_url").GetString();
             if (string.IsNullOrWhiteSpace(url)) return;
 
@@ -231,18 +235,19 @@ public sealed class MainForm : Form
                 }
             }
 
-            var installer = Path.Combine(Path.GetTempPath(), "AIR-Browser-Update-" + latestBuild + ".exe");
-            await File.WriteAllBytesAsync(installer, bytes);
+            var packageExtension = _portable ? ".zip" : ".exe";
+            var package = Path.Combine(Path.GetTempPath(), "AIR-Browser-Update-" + latestBuild + packageExtension);
+            await File.WriteAllBytesAsync(package, bytes);
             var app = Application.ExecutablePath;
             var updaterScript = Path.Combine(Path.GetTempPath(), "AIR-Browser-Updater-" + latestBuild + ".ps1");
             var script = "$ErrorActionPreference='Stop'\n" +
-                "$installer=$args[0]\n$app=$args[1]\n$processId=[int]$args[2]\n" +
-                "try { Wait-Process -Id $processId -ErrorAction SilentlyContinue; " +
-                "$p=Start-Process -FilePath $installer -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru; " +
-                "if ($p.ExitCode -ne 0) { throw ('Installer exited with code ' + $p.ExitCode) } } " +
-                "finally { Start-Process -FilePath $app }\n";
+                "$package=$args[0]\n$app=$args[1]\n$processId=[int]$args[2]\n$portable=$args[3] -eq 'true'\n" +
+                "Wait-Process -Id $processId -ErrorAction SilentlyContinue\n" +
+                "if ($portable) { Expand-Archive -LiteralPath $package -DestinationPath (Split-Path -Parent $app) -Force } " +
+                "else { $p=Start-Process -FilePath $package -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru; if ($p.ExitCode -ne 0) { throw ('Installer exited with code ' + $p.ExitCode) } }\n" +
+                "Start-Process -FilePath $app\n";
             await File.WriteAllTextAsync(updaterScript, script);
-            var command = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + updaterScript + "\" \"" + installer + "\" \"" + app + "\" " + Environment.ProcessId;
+            var command = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + updaterScript + "\" \"" + package + "\" \"" + app + "\" " + Environment.ProcessId + " " + (_portable ? "true" : "false");
             Process.Start(new ProcessStartInfo("powershell.exe", command)
             {
                 UseShellExecute = false,
