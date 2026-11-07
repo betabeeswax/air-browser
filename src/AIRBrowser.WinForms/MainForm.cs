@@ -28,7 +28,7 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _overlayAnimation = new() { Interval = 15 };
     private int _overlayTarget = 67;
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
-    private readonly Panel _statusPanel = new() { Dock = DockStyle.Bottom, Height = 24, BackColor = Color.FromArgb(13,24,39) };
+    private readonly Panel _statusPanel = new() { Dock = DockStyle.None, Height = 24, BackColor = Color.FromArgb(13,24,39) };
     private readonly Label _statusLabel = new() { Dock = DockStyle.Fill, ForeColor = Color.FromArgb(151,177,207), TextAlign = ContentAlignment.MiddleLeft, Font = new Font("Segoe UI", 8.5f), Padding = new Padding(10,0,0,0), Text = "Ready" };
     private readonly List<TabEntry> _tabs = new();
     private readonly List<string> _groups = new() { "Ungrouped" };
@@ -57,13 +57,14 @@ public sealed class MainForm : Form
         try { if (File.Exists(ProfilesFile)) { var saved = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(ProfilesFile)); if (saved is { Count: > 0 }) { _profiles.Clear(); _profiles.AddRange(saved.Distinct(StringComparer.OrdinalIgnoreCase)); if (!_profiles.Contains("Personal")) _profiles.Insert(0, "Personal"); } } } catch { }
         _runtime=Path.Combine(AppContext.BaseDirectory,"FixedRuntime","Microsoft.WebView2.FixedVersionRuntime.156.0.4314.56.x64");
         _shellPanel.Controls.Add(_shell);
-        _browserPanel.Dock = DockStyle.Fill;
+        _browserPanel.Dock = DockStyle.None;
         _shellPanel.Location = Point.Empty;
         _shellPanel.Width = ClientSize.Width;
         _shellPanel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         Controls.Add(_browserPanel); _statusPanel.Controls.Add(_statusLabel); Controls.Add(_statusPanel); Controls.Add(_shellPanel);
+        LayoutBrowserSurface();
         _shellPanel.BringToFront();
-        Resize += (_, _) => { _shellPanel.Width = ClientSize.Width; _shellPanel.BringToFront(); };
+        Resize += (_, _) => { LayoutBrowserSurface(); _shellPanel.Width = ClientSize.Width; _shellPanel.BringToFront(); };
         _overlayAnimation.Tick += (_, _) =>
         {
             var delta = _overlayTarget - _shellPanel.Height;
@@ -81,6 +82,18 @@ public sealed class MainForm : Form
 
     private static Icon? LoadIcon(){try{var p=Path.Combine(AppContext.BaseDirectory,"Assets","air-browser.ico");if(!File.Exists(p))p=Path.Combine(AppContext.BaseDirectory,"air-browser.ico");return File.Exists(p)?new Icon(p):null;}catch{return null;}}
     private static bool CanWrite(string p){try{Directory.CreateDirectory(p);var f=Path.Combine(p,".write-test");File.WriteAllText(f,"ok");File.Delete(f);return true;}catch{return false;}}
+
+    private void LayoutBrowserSurface()
+    {
+        // Keep the page viewport strictly below the 67px browser chrome and above the bottom status strip.
+        const int chromeHeight = 67;
+        const int statusHeight = 24;
+        var width = Math.Max(0, ClientSize.Width);
+        var height = Math.Max(0, ClientSize.Height);
+        var statusTop = Math.Max(chromeHeight, height - statusHeight);
+        _browserPanel.Bounds = new Rectangle(0, chromeHeight, width, Math.Max(0, statusTop - chromeHeight));
+        _statusPanel.Bounds = new Rectangle(0, statusTop, width, Math.Min(statusHeight, height));
+    }
 
     private async Task<CoreWebView2Environment> EnvironmentForAsync(string name)
     {
