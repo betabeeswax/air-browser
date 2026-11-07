@@ -38,6 +38,23 @@
  </main></div>
 </div>
 <div class="popover hidden" id="profilesPanel"><div class="panel-head"><div><small>YOUR BROWSER SPACES</small><h2>Profiles</h2></div><button class="icon-button" data-close="profilesPanel">×</button></div><div id="profileList" class="profile-list"></div><div id="profileEditor" class="profile-editor hidden"><b>Edit profile</b><input id="editProfileName" placeholder="Profile display name"><label>Profile icon <select id="editProfileAvatar"><option>●</option><option>🌙</option><option>⭐</option><option>🚀</option><option>🎮</option><option>🌿</option><option>🐱</option><option>🐼</option><option>🔥</option><option>💎</option></select></label><label class="photo-pick">Choose profile picture <input id="editProfilePhoto" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button class="secondary" id="removeProfilePhoto">Remove picture</button><button class="go" id="saveProfileEdit">Save changes</button></div><div class="profile-create"><input id="newProfileName" placeholder="Name a new profile"><button class="go" id="createProfile">Create profile</button></div><button class="account-link" id="linkAccount">☁ Link AIR Account</button><p class="muted">Profiles keep bookmarks and browser data separate. AIR Account is optional.</p></div>
-<div class="popover hidden" id="accountPanel"><div class="panel-head"><div><small>AIR ACCOUNT</small><h2>Sign in</h2></div><button class="icon-button" data-close="accountPanel">×</button></div><div class="account-body"><div class="account-mark">A</div><h3>One account for AIR</h3><p>Link your AIR Account to use AIR Sync and connect across AIR apps. You can keep browsing without signing in.</p><label>Email<input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="username"></label><label>Password<input id="accountPassword" type="password" placeholder="Your password" autocomplete="current-password"></label><button class="go account-submit" id="accountSignIn">Sign in</button><button class="secondary account-create" id="accountCreate">Create an AIR Account</button><div class="account-separator">OR</div><button class="secondary account-provider" id="accountGoogle">Continue with Google</button><button class="secondary account-provider" id="accountMicrosoft">Continue with Microsoft</button><p class="muted account-note">Account sign-in will connect once AIR Account authentication is configured. Your browser profile stays local until then.</p></div></div>
+<div class="popover hidden" id="accountPanel">
+ <div class="panel-head"><div><small>AIR ACCOUNT</small><h2 id="accountTitle">Welcome to AIR</h2></div><button class="icon-button" data-close="accountPanel">×</button></div>
+ <div class="account-body">
+  <div class="account-mark">A</div>
+  <h3 id="accountHeading">Your AIR, your way.</h3>
+  <p id="accountIntro">Sign in to sync across AIR apps, or try AIR without an account. You never need an AIR Account just to browse.</p>
+  <div class="account-mode"><button id="accountModeIn" class="selected">Sign in</button><button id="accountModeUp">Sign up</button></div>
+  <label>Email<input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="username"></label>
+  <label>Password<input id="accountPassword" type="password" placeholder="At least 8 characters" autocomplete="current-password"></label>
+  <button class="go account-submit" id="accountSubmit">Sign in</button>
+  <div class="account-separator"><span>OR CONTINUE WITH</span></div>
+  <button class="secondary account-provider" id="accountGoogle"><span class="provider-icon">G</span>Continue with Google</button>
+  <button class="secondary account-provider" id="accountMicrosoft"><span class="provider-icon microsoft-icon">▦</span>Continue with Microsoft</button>
+  <button class="account-guest" id="accountTry">Try AIR without an account <span>→</span></button>
+  <p class="muted account-note" id="accountMessage">Google and Microsoft can create a new AIR Account or sign into an existing one. Browsing stays free without an account.</p>
+  <div class="account-signed hidden" id="accountSigned"><b id="accountSignedEmail"></b><button class="secondary" id="accountSignOut">Sign out</button></div>
+ </div>
+</div>
 <div class="toast" id="toast"></div>
 <script src="air.js"></script></body></html>
