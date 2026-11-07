@@ -82,6 +82,7 @@ public sealed class MainForm : Form
     {
         try{
             var env=await EnvironmentForAsync("AIR-Interface");
+            _shell.DefaultBackgroundColor = Color.Transparent;
             await _shell.EnsureCoreWebView2Async(env);
             _shell.CoreWebView2.Settings.AreDefaultContextMenusEnabled=false;
             _shell.CoreWebView2.WebMessageReceived+=ShellMessageReceived;
