@@ -171,14 +171,46 @@ public sealed class MainForm : Form
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("AIR-Browser-Updater");
             http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            http.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true, NoStore = true };
             using var response = await http.GetAsync("https://api.github.com/repos/betabeeswax/air-browser/releases/latest");
             response.EnsureSuccessStatusCode();
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            var tag = doc.RootElement.TryGetProperty("tag_name", out var tagValue) ? tagValue.GetString() ?? "" : "";
+            var release = doc.RootElement;
+            if ((release.TryGetProperty("draft", out var draftValue) && draftValue.GetBoolean()) ||
+                (release.TryGetProperty("prerelease", out var prereleaseValue) && prereleaseValue.GetBoolean()))
+            {
+                if (manual) MessageBox.Show(this, "There is no newer stable AIR Browser release available.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var tag = release.TryGetProperty("tag_name", out var tagValue) ? tagValue.GetString() ?? "" : "";
             var match = System.Text.RegularExpressions.Regex.Match(tag, @"(\d+)$");
-            if (!match.Success || !int.TryParse(match.Groups[1].Value, out var latestBuild)) return;
-            var currentBuild = Version.TryParse(Application.ProductVersion, out var installedVersion) ? installedVersion.Build : 0;
-            if (latestBuild <= currentBuild) { if (manual) { SetStatus("AIR Browser is up to date"); MessageBox.Show(this, "You already have the latest version of AIR Browser.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information); } return; }
+            if (!match.Success || !int.TryParse(match.Groups[1].Value, out var latestBuild))
+            {
+                if (manual) MessageBox.Show(this, "AIR Browser could not read the release version, so no update was installed.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // The SDK appends commit metadata to ProductVersion (for example 0.2.136+abc123).
+            // Parse the actual assembly version first so build metadata can never make us think
+            // the installed version is 0 and trigger a reinstall on every check.
+            var installedVersion = typeof(MainForm).Assembly.GetName().Version;
+            var currentBuild = installedVersion?.Build ?? 0;
+            if (currentBuild <= 0)
+            {
+                var productVersion = Application.ProductVersion.Split('+', '-')[0];
+                if (Version.TryParse(productVersion, out var parsedProductVersion))
+                    currentBuild = parsedProductVersion.Build;
+            }
+            Debug.WriteLine($"AIR Browser update comparison: installed build {currentBuild}; latest stable build {latestBuild} ({tag}).");
+            if (latestBuild <= currentBuild)
+            {
+                if (manual)
+                {
+                    SetStatus("AIR Browser is up to date");
+                    MessageBox.Show(this, $"You already have the latest version of AIR Browser (build {currentBuild}).", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                return;
+            }
 
             var asset = doc.RootElement.GetProperty("assets").EnumerateArray()
                 .FirstOrDefault(x => x.GetProperty("name").GetString() == "AIR-Browser-Setup.exe");
