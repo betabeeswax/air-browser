@@ -287,7 +287,7 @@ public sealed partial class MainWindow : Window
             web.CoreWebView2.DocumentTitleChanged += (_, _) =>
             {
                 var title = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
-                entry.Tab.Content = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
+                entry.Tab.Content = title;
                 RefreshVerticalTabs();
             };
             web.CoreWebView2.NavigationStarting += (_, e) =>
@@ -576,7 +576,7 @@ public sealed partial class MainWindow : Window
         _verticalMode = vertical;
         BrowserTabsPanel.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
         VerticalTabs.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
-        SidebarTitle.Text = vertical ? "VERTICAL TABS" : "AIR SIDEBAR";
+        SidebarTitle.Text = vertical ? "YOUR TABS" : "YOUR TABS";
         VerticalTabsButton.Background = vertical ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)) : null;
         HorizontalTabsButton.Background = vertical ? null : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214));
         StatusText.Text = vertical ? "Vertical tabs enabled" : "Horizontal tabs enabled";
@@ -857,7 +857,7 @@ public sealed partial class MainWindow : Window
         public WebView2 Web { get; } = web;
         public Grid Host { get; } = host;
         public string Group { get; set; } = "Ungrouped";
-        public string DisplayTitle => (Group == "Ungrouped" ? "" : "● " + Group + "  ·  ") + (Web.CoreWebView2?.DocumentTitle ?? "New tab");
+        public string DisplayTitle => Web.CoreWebView2?.DocumentTitle ?? "New tab";
     }
     private record Bookmark(string Url, string Title);
     private record HistoryEntry(string Url, string Title, DateTimeOffset VisitedAt);
