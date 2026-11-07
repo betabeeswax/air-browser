@@ -23,6 +23,8 @@ public sealed class MainForm : Form
     private string _engine = "Bing";
     private string _status = "Starting AIR Browser…";
     private bool _shellReady;
+    private readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 };
+    private bool _updateCheckRunning;
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
     private static string Safe(string s)=>string.Concat(s.Select(c=>char.IsLetterOrDigit(c)||c=='-'?c:'_'));
 
@@ -38,8 +40,8 @@ public sealed class MainForm : Form
         _runtime=Path.Combine(AppContext.BaseDirectory,"FixedRuntime","Microsoft.WebView2.FixedVersionRuntime.156.0.4314.56.x64");
         _shellPanel.Controls.Add(_shell);
         Controls.Add(_browserPanel); Controls.Add(_shellPanel);
-        Shown+=async (_,_)=>await InitializeShellAsync();
-        FormClosing+=(_,_)=>{foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
+        Shown+=async (_,_)=>{await InitializeShellAsync();StartAutomaticUpdates();};
+        FormClosing+=(_,_)=>{_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
     }
 
     private static Icon? LoadIcon(){try{var p=Path.Combine(AppContext.BaseDirectory,"Assets","air-browser.ico");if(!File.Exists(p))p=Path.Combine(AppContext.BaseDirectory,"air-browser.ico");return File.Exists(p)?new Icon(p):null;}catch{return null;}}
@@ -96,7 +98,6 @@ public sealed class MainForm : Form
                 case "showBookmarks": ShowBookmarks();break;
                 case "showHistory": ShowHistory();break;
                 case "downloads": Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads")){UseShellExecute=true});break;
-                case "update": await CheckForUpdatesAsync();break;
                 case "clearData": if(_active?.View.CoreWebView2 is not null){await _active.View.CoreWebView2.Profile.ClearBrowsingDataAsync();SetStatus("Browsing data cleared");}break;
             }
         }catch(Exception ex){SetStatus("Action failed: "+ex.Message);}
@@ -148,8 +149,93 @@ public sealed class MainForm : Form
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
     private void SwitchProfile(string name){if(!_profiles.Contains(name)||name==_profile)return;_profile=name;foreach(var t in _tabs){_browserPanel.Controls.Remove(t.View);t.View.Dispose();}_tabs.Clear();_active=null;_ = AddTabAsync();SetStatus("Profile: "+name);}
     private void RecordHistory(string url){if(string.IsNullOrWhiteSpace(url)||!Uri.TryCreate(url,UriKind.Absolute,out var u)||u.Scheme is not ("http" or "https"))return;try{Directory.CreateDirectory(ProfileFolder);var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();list.Add(url);if(list.Count>500)list=list.TakeLast(500).ToList();File.WriteAllText(file,JsonSerializer.Serialize(list));}catch{}}
-    private async Task CheckForUpdatesAsync(){try{SetStatus("Checking for AIR Browser updates…");using var http=new HttpClient();http.DefaultRequestHeaders.UserAgent.ParseAdd("AIR-Browser-Updater");var json=await http.GetStringAsync("https://api.github.com/repos/betabeeswax/air-browser/releases/latest");using var doc=JsonDocument.Parse(json);var tag=doc.RootElement.TryGetProperty("tag_name",out var tagValue)?tagValue.GetString()??"":"";var latestBuild=int.TryParse(tag.Split('-').Last(),out var parsedBuild)?parsedBuild:0;var currentBuild=Version.TryParse(Application.ProductVersion,out var installedVersion)?installedVersion.Build:0;if(latestBuild>0&&currentBuild>=latestBuild){SetStatus("AIR Browser is up to date");MessageBox.Show(this,"You already have the latest AIR Browser version.","AIR Browser",MessageBoxButtons.OK,MessageBoxIcon.Information);return;}var assets=doc.RootElement.GetProperty("assets");var asset=assets.EnumerateArray().FirstOrDefault(x=>x.GetProperty("name").GetString()=="AIR-Browser-Setup.exe");if(asset.ValueKind==JsonValueKind.Undefined){SetStatus("No installer was found in the latest release");return;}var url=asset.GetProperty("browser_download_url").GetString();if(string.IsNullOrWhiteSpace(url))return;var answer=MessageBox.Show(this,"The latest AIR Browser installer is ready. Download and install it now? Your browser profiles and data will be kept.","AIR Browser update",MessageBoxButtons.YesNo,MessageBoxIcon.Information);if(answer!=DialogResult.Yes){SetStatus("Update postponed");return;}SetStatus("Downloading update…");var bytes=await http.GetByteArrayAsync(url);var installer=Path.Combine(Path.GetTempPath(),"AIR-Browser-Update.exe");await File.WriteAllBytesAsync(installer,bytes);Process.Start(new ProcessStartInfo(installer,"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"){UseShellExecute=true});Application.Exit();}catch(Exception ex){SetStatus("Update failed: "+ex.Message);MessageBox.Show(this,"Could not check or install the update. Please try again later.\n\n"+ex.Message,"AIR Browser updater",MessageBoxButtons.OK,MessageBoxIcon.Warning);}}
-    private void OpenMenu(){var m=new ContextMenuStrip();m.Items.Add("New tab",null,async(_,_)=>await AddTabAsync());m.Items.Add("Bookmarks",null,(_,_)=>ShowBookmarks());m.Items.Add("History",null,(_,_)=>ShowHistory());m.Items.Add("Downloads",null,(_,_)=>Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads")){UseShellExecute=true}));m.Items.Add("Check for updates",null,(_,_)=>Process.Start(new ProcessStartInfo("https://github.com/betabeeswax/air-browser/releases/latest"){UseShellExecute=true}));m.Show(Cursor.Position);}
+    private void StartAutomaticUpdates()
+    {
+        _updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync();
+        _updateTimer.Start();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(20));
+            if (!IsDisposed && IsHandleCreated)
+                BeginInvoke(new Action(async () => await CheckForUpdatesAsync()));
+        });
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (_updateCheckRunning || IsDisposed) return;
+        _updateCheckRunning = true;
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("AIR-Browser-Updater");
+            http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            using var response = await http.GetAsync("https://api.github.com/repos/betabeeswax/air-browser/releases/latest");
+            response.EnsureSuccessStatusCode();
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var tag = doc.RootElement.TryGetProperty("tag_name", out var tagValue) ? tagValue.GetString() ?? "" : "";
+            var match = System.Text.RegularExpressions.Regex.Match(tag, @"(\d+)$");
+            if (!match.Success || !int.TryParse(match.Groups[1].Value, out var latestBuild)) return;
+            var currentBuild = Version.TryParse(Application.ProductVersion, out var installedVersion) ? installedVersion.Build : 0;
+            if (latestBuild <= currentBuild) return;
+
+            var asset = doc.RootElement.GetProperty("assets").EnumerateArray()
+                .FirstOrDefault(x => x.GetProperty("name").GetString() == "AIR-Browser-Setup.exe");
+            if (asset.ValueKind == JsonValueKind.Undefined) return;
+            var url = asset.GetProperty("browser_download_url").GetString();
+            if (string.IsNullOrWhiteSpace(url)) return;
+
+            SetStatus("AIR Browser update found — downloading automatically…");
+            var bytes = await http.GetByteArrayAsync(url);
+            if (asset.TryGetProperty("digest", out var digestElement))
+            {
+                var expected = digestElement.GetString();
+                if (!string.IsNullOrWhiteSpace(expected) && expected.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var actual = "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+                    if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("The downloaded update failed its SHA-256 check.");
+                }
+            }
+
+            var installer = Path.Combine(Path.GetTempPath(), "AIR-Browser-Update-" + latestBuild + ".exe");
+            await File.WriteAllBytesAsync(installer, bytes);
+            var app = Application.ExecutablePath;
+            var updaterScript = Path.Combine(Path.GetTempPath(), "AIR-Browser-Updater-" + latestBuild + ".ps1");
+            var script = "$ErrorActionPreference='Stop'\n" +
+                "$installer=$args[0]\n$app=$args[1]\n$processId=[int]$args[2]\n" +
+                "try { Wait-Process -Id $processId -ErrorAction SilentlyContinue; " +
+                "$p=Start-Process -FilePath $installer -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru; " +
+                "if ($p.ExitCode -ne 0) { throw ('Installer exited with code ' + $p.ExitCode) } } " +
+                "finally { Start-Process -FilePath $app }\n";
+            await File.WriteAllTextAsync(updaterScript, script);
+            var command = "-NoProfile -ExecutionPolicy Bypass -File \"" + updaterScript + "\" \"" + installer + "\" \"" + app + "\" " + Environment.ProcessId;
+            var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
+            Process.Start(new ProcessStartInfo("powershell.exe", "-NoProfile -WindowStyle Hidden -EncodedCommand " + encoded)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            SetStatus("Installing AIR Browser update…");
+            Application.Exit();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("AIR Browser automatic update check failed: " + ex);
+            SetStatus("Automatic update check will retry later");
+        }
+        finally { _updateCheckRunning = false; }
+    }
+
+    private void OpenMenu()
+    {
+        var m = new ContextMenuStrip();
+        m.Items.Add("New tab", null, async (_, _) => await AddTabAsync());
+        m.Items.Add("Bookmarks", null, (_, _) => ShowBookmarks());
+        m.Items.Add("History", null, (_, _) => ShowHistory());
+        m.Items.Add("Downloads", null, (_, _) => Process.Start(new ProcessStartInfo("explorer.exe", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")) { UseShellExecute = true }));
+        m.Show(Cursor.Position);
+    }
     private void ShowBookmarks(){var file=Path.Combine(ProfileFolder,"bookmarks.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("Bookmarks",list);if(selected is not null)Navigate(selected);}
     private void ShowHistory(){var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("History",list.AsEnumerable().Reverse().ToList());if(selected is not null)Navigate(selected);}
     private string? ShowList(string title,List<string> values){using var form=new Form{Text=title,Size=new Size(700,500),StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(13,23,38)};var list=new ListBox{Dock=DockStyle.Fill,BackColor=Color.FromArgb(20,34,54),ForeColor=Color.White,DataSource=values};form.Controls.Add(list);return form.ShowDialog(this)==DialogResult.OK?list.SelectedItem as string:null;}
