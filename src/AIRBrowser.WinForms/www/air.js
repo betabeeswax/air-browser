@@ -57,7 +57,7 @@ function updateAccountView(){
  const session=storedAirSession(),signed=!!session?.access_token;
  $("accountSigned").classList.toggle("hidden",!signed);
  $("accountModeIn").classList.toggle("hidden",signed);$("accountModeUp").classList.toggle("hidden",signed);
- $("accountEmail").classList.toggle("hidden",signed);$("accountPassword").classList.toggle("hidden",signed);
+ $("accountEmail").parentElement.classList.toggle("hidden",signed);$("accountPassword").parentElement.classList.toggle("hidden",signed);
  $("accountSubmit").classList.toggle("hidden",signed);
  $("accountGoogle").classList.toggle("hidden",signed);$("accountMicrosoft").classList.toggle("hidden",signed);
  $("accountSignedEmail").textContent=session?.user?.email||"Signed in to AIR Account";
