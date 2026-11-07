@@ -63,7 +63,6 @@ function updateAccountView(){
  $("accountModeIn").classList.toggle("hidden",signed);$("accountModeUp").classList.toggle("hidden",signed);
  $("accountEmail").parentElement.classList.toggle("hidden",signed);$("accountPassword").parentElement.classList.toggle("hidden",signed);
  $("accountSubmit").classList.toggle("hidden",signed);
- $("accountGoogle").classList.toggle("hidden",signed);$("accountMicrosoft").classList.toggle("hidden",signed);
  $("accountSignedEmail").textContent=session?.user?.email||"Signed in to AIR Account";
  if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is ready. You can securely back up and restore this browser profile with AIR Sync."; $("accountTitle").textContent="Your account";}
 }
@@ -83,7 +82,6 @@ async function submitAirAccount(){
  }catch(error){showAccountMessage(error.message||"Sign-in failed. Please try again.",true)}
  finally{button.disabled=false;button.textContent=accountMode==="signin"?"Sign in":"Create AIR Account"}
 }
-function beginProviderSignIn(provider){showAccountMessage("Opening "+provider+" sign-in in your browser…");send("providerSignIn",{provider});}
 
 function base64Bytes(bytes){let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s)}
 function fromBase64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
@@ -128,10 +126,8 @@ $("accountModeIn").onclick=()=>setAccountMode("signin");
 $("accountModeUp").onclick=()=>setAccountMode("signup");
 $("accountSubmit").onclick=submitAirAccount;
 $("accountPassword").addEventListener("keydown",e=>{if(e.key==="Enter")submitAirAccount()});
-$("accountGoogle").onclick=()=>beginProviderSignIn("Google");
 $("syncBackup").onclick=()=>{send("syncExport")};
 $("syncRestore").onclick=restoreSyncData;
-$("accountMicrosoft").onclick=()=>beginProviderSignIn("Microsoft");
 $("accountTry").onclick=()=>{hidePanels();toast("You're using AIR without an account")};
 $("accountSignOut").onclick=()=>{localStorage.removeItem(sessionKey());updateAccountView();setAccountMode("signin");showAccountMessage("You have signed out.");toast("Signed out")};
 $("linkAccount").onclick=()=>{updateAccountView();setAccountMode("signin");showPanel("accountPanel")};
