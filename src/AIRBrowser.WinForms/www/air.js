@@ -37,7 +37,62 @@ $("createProfile").onclick=()=>{const name=$("newProfileName").value.trim();if(n
 $("editProfilePhoto").onchange=e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>3*1024*1024){toast("Choose an image smaller than 3 MB");e.target.value="";return}const reader=new FileReader();reader.onload=()=>{window.pendingProfilePhoto=reader.result;toast("Picture selected")};reader.readAsDataURL(file)};
 $("removeProfilePhoto").onclick=()=>{window.pendingProfilePhoto="";toast("Profile picture will be removed")};
 $("saveProfileEdit").onclick=()=>{const p=window.editingProfile;if(!p)return;const meta=profileMeta();meta[p]={label:$("editProfileName").value.trim()||p,avatar:$("editProfileAvatar").value,avatarImage:window.pendingProfilePhoto||""};localStorage.setItem("airProfileMeta",JSON.stringify(meta));$("profileEditor").classList.add("hidden");renderProfiles();toast("Profile updated")};
-$("accountSignIn").onclick=()=>toast("AIR Account sign-in is not connected yet");$("accountCreate").onclick=()=>toast("AIR Account registration is not connected yet");$("accountGoogle").onclick=()=>toast("Google sign-in will be available when AIR Account is connected");$("accountMicrosoft").onclick=()=>toast("Microsoft sign-in will be available when AIR Account is connected");
+
+const AIR_AUTH_URL="https://rkwpxzotvneoavrczkzo.supabase.co";
+const AIR_AUTH_KEY="sb_publishable_XZ71KE8FXhRoPdC1K7tEJw_tN4wReB_";
+let accountMode="signin";
+function setAccountMode(mode){
+ accountMode=mode;
+ $("accountModeIn").classList.toggle("selected",mode==="signin");
+ $("accountModeUp").classList.toggle("selected",mode==="signup");
+ $("accountSubmit").textContent=mode==="signin"?"Sign in":"Create AIR Account";
+ $("accountTitle").textContent=mode==="signin"?"Welcome back":"Create your AIR Account";
+ $("accountHeading").textContent=mode==="signin"?"Good to see you again.":"One account for all of AIR.";
+ $("accountIntro").textContent=mode==="signin"?"Sign in to sync across AIR apps. Or keep browsing without an account.":"Create an AIR Account to use AIR Sync and connect across AIR apps.";
+ $("accountPassword").autocomplete=mode==="signin"?"current-password":"new-password";
+}
+function showAccountMessage(message,isError=false){const el=$("accountMessage");el.textContent=message;el.style.color=isError?"#ff9b9b":""}
+function storedAirSession(){try{return JSON.parse(localStorage.getItem("airAuthSession")||"null")}catch{return null}}
+function updateAccountView(){
+ const session=storedAirSession(),signed=!!session?.access_token;
+ $("accountSigned").classList.toggle("hidden",!signed);
+ $("accountModeIn").classList.toggle("hidden",signed);$("accountModeUp").classList.toggle("hidden",signed);
+ $("accountEmail").classList.toggle("hidden",signed);$("accountPassword").classList.toggle("hidden",signed);
+ $("accountSubmit").classList.toggle("hidden",signed);
+ $("accountGoogle").classList.toggle("hidden",signed);$("accountMicrosoft").classList.toggle("hidden",signed);
+ $("accountSignedEmail").textContent=session?.user?.email||"Signed in to AIR Account";
+ if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is connected on this device."; $("accountTitle").textContent="Your account";}
+}
+async function submitAirAccount(){
+ const email=$("accountEmail").value.trim(),password=$("accountPassword").value;
+ if(!email||!password){showAccountMessage("Enter your email and password.",true);return}
+ if(password.length<8){showAccountMessage("Your password must be at least 8 characters.",true);return}
+ const button=$("accountSubmit");button.disabled=true;button.textContent=accountMode==="signin"?"Signing in…":"Creating account…";
+ try{
+  const endpoint=accountMode==="signin"?"/auth/v1/token?grant_type=password":"/auth/v1/signup";
+  const response=await fetch(AIR_AUTH_URL+endpoint,{method:"POST",headers:{"apikey":AIR_AUTH_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.msg||data.message||data.error_description||"Could not complete sign-in.");
+  if(data.access_token){localStorage.setItem("airAuthSession",JSON.stringify(data));updateAccountView();showAccountMessage("You're signed in. AIR Account is ready on this device.");toast("Signed in to AIR Account");}
+  else if(accountMode==="signup"){showAccountMessage("Check your email for a confirmation link, then come back and sign in.");}
+  else throw new Error("The sign-in response did not include a session.");
+ }catch(error){showAccountMessage(error.message||"Sign-in failed. Please try again.",true)}
+ finally{button.disabled=false;button.textContent=accountMode==="signin"?"Sign in":"Create AIR Account"}
+}
+function beginProviderSignIn(provider){
+ showAccountMessage(provider+" sign-in needs its OAuth app credentials enabled in the AIR-ACCOUNTS project. The buttons are ready, but provider sign-in is not activated yet.",true);
+}
+$("accountModeIn").onclick=()=>setAccountMode("signin");
+$("accountModeUp").onclick=()=>setAccountMode("signup");
+$("accountSubmit").onclick=submitAirAccount;
+$("accountPassword").addEventListener("keydown",e=>{if(e.key==="Enter")submitAirAccount()});
+$("accountGoogle").onclick=()=>beginProviderSignIn("Google");
+$("accountMicrosoft").onclick=()=>beginProviderSignIn("Microsoft");
+$("accountTry").onclick=()=>{hidePanels();toast("You're using AIR without an account")};
+$("accountSignOut").onclick=()=>{localStorage.removeItem("airAuthSession");updateAccountView();setAccountMode("signin");showAccountMessage("You have signed out.");toast("Signed out")};
+$("linkAccount").onclick=()=>{updateAccountView();setAccountMode("signin");showPanel("accountPanel")};
+updateAccountView();setAccountMode("signin");
+
 $("clearBrowsing").onclick=()=>{if(confirm("Clear browsing history and saved cookies for this profile?"))send("clearData")};
 ["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
 window.chrome?.webview?.addEventListener("message",e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value)});
