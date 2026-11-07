@@ -2,7 +2,6 @@
     x:Class="AIRBrowser.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     Title="AIR Browser">
     <Grid x:Name="RootLayout" Background="#080D16" RowSpacing="0">
         <Grid.RowDefinitions>
@@ -48,12 +47,7 @@
         </ScrollViewer>
 
         <!-- Tabs -->
-        <controls:TabView x:Name="BrowserTabs" Grid.Row="2" Height="42"
-                          IsAddTabButtonVisible="True"
-                          AddTabButtonClick="BrowserTabs_AddTabButtonClick"
-                          TabCloseRequested="BrowserTabs_TabCloseRequested"
-                          SelectionChanged="BrowserTabs_SelectionChanged"
-                          Background="#0D1726" Foreground="#EAF3FF"/>
+        <ContentControl x:Name="BrowserTabsHost" Grid.Row="2" Height="42"/>
 
         <!-- Main content area -->
         <Grid Grid.Row="3" ColumnSpacing="0">
