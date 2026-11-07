@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="air.css"><title>AIR Browser</title></head>
+<body>
+<header class="top">
+ <div class="brand"><img src="../assets/air-browser.png" onerror="this.style.display='none'"><span class="mark">A</span><b>AIR</b></div>
+ <div class="tabs" id="tabs"></div><button class="add" id="newTab" title="New tab">+</button>
+</header>
+<nav class="toolbar">
+ <button id="back" title="Back">‹</button><button id="forward" title="Forward">›</button><button id="reload" title="Reload">↻</button>
+ <select id="engine"><option>Bing</option><option>Google</option><option>DuckDuckGo</option></select>
+ <input id="address" placeholder="Search or enter a website address" autocomplete="off"><button class="go" id="go">Go</button>
+ <button id="bookmark" title="Bookmark">☆</button><select id="profile"><option>Personal</option><option>Work</option></select><button id="menu">•••</button>
+</nav>
+<section class="groupbar"><span>GROUPS</span><div id="groups"></div><button id="newGroup">+ New group</button></section>
+<div class="hint" id="hint">Welcome to AIR Browser</div>
+<script src="air.js"></script></body></html>
