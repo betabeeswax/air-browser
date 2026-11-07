@@ -26,6 +26,8 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _overlayAnimation = new() { Interval = 15 };
     private int _overlayTarget = 67;
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
+    private readonly Panel _statusPanel = new() { Dock = DockStyle.Bottom, Height = 24, BackColor = Color.FromArgb(13,24,39) };
+    private readonly Label _statusLabel = new() { Dock = DockStyle.Fill, ForeColor = Color.FromArgb(151,177,207), TextAlign = ContentAlignment.MiddleLeft, Font = new Font("Segoe UI", 8.5f), Padding = new Padding(10,0,0,0), Text = "Ready" };
     private readonly List<TabEntry> _tabs = new();
     private readonly List<string> _groups = new() { "Ungrouped" };
     private readonly List<string> _profiles = new() { "Personal", "Work" };
@@ -57,7 +59,7 @@ public sealed class MainForm : Form
         _shellPanel.Location = Point.Empty;
         _shellPanel.Width = ClientSize.Width;
         _shellPanel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        Controls.Add(_browserPanel); Controls.Add(_shellPanel);
+        Controls.Add(_browserPanel); _statusPanel.Controls.Add(_statusLabel); Controls.Add(_statusPanel); Controls.Add(_shellPanel);
         _shellPanel.BringToFront();
         Resize += (_, _) => { _shellPanel.Width = ClientSize.Width; _shellPanel.BringToFront(); };
         _overlayAnimation.Tick += (_, _) =>
@@ -420,7 +422,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private void ShowBookmarks(){var file=Path.Combine(ProfileFolder,"bookmarks.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("Bookmarks",list);if(selected is not null)Navigate(selected);}
     private void ShowHistory(){var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("History",list.AsEnumerable().Reverse().ToList());if(selected is not null)Navigate(selected);}
     private string? ShowList(string title,List<string> values){using var form=new Form{Text=title,Size=new Size(700,500),StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(13,23,38)};var list=new ListBox{Dock=DockStyle.Fill,BackColor=Color.FromArgb(20,34,54),ForeColor=Color.White,DataSource=values};form.Controls.Add(list);return form.ShowDialog(this)==DialogResult.OK?list.SelectedItem as string:null;}
-    private void SetStatus(string value){_status=value;Send("status",new{value});}
+    private void SetStatus(string value){_status=value;if(!IsDisposed&&IsHandleCreated)_statusLabel.Text=value;Send("status",new{value});}
     private void PushState(){if(!_shellReady)return;Send("state",new{tabs=_tabs.Select(t=>new{id=t.Id,title=t.Title,group=t.Group}).ToArray(),groups=_groups.ToArray(),active=_active?.Id,address=_active?.View.CoreWebView2?.Source??"",status=_status,profile=_profile,profiles=_profiles.ToArray()});}
     private void Send(string type,object data){if(!_shellReady||_shell.CoreWebView2 is null)return;_shell.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new{type,data}));}
     private sealed class TabEntry(string id,WebView2 view,string title){public string Id=id;public WebView2 View=view;public string Title=title;public string Group="Ungrouped";}
