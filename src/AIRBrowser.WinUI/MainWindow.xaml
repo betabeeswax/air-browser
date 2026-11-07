@@ -7,6 +7,7 @@
     <Grid x:Name="RootLayout" Background="#05070C">
         <Grid.RowDefinitions>
             <RowDefinition Height="56"/>
+            <RowDefinition Height="40"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="28"/>
         </Grid.RowDefinitions>
@@ -53,7 +54,21 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" Background="#080E18">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,6,8,6" VerticalAlignment="Center">
+                <Button x:Name="BackButton" Content="&lt;" Click="Back_Click" Width="30" Height="28"/>
+                <Button x:Name="ForwardButton" Content="&gt;" Click="Forward_Click" Width="30" Height="28"/>
+                <Button Content="R" Click="Reload_Click" Width="30" Height="28"/>
+            </StackPanel>
+            <!-- TabView is created in code to avoid XAML parse issues -->
+            <Grid x:Name="TabsHost" Grid.Column="1" Margin="0,4,8,4"/>
+        </Grid>
+
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="200"/>
                 <ColumnDefinition Width="*"/>
@@ -94,30 +109,10 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,6" Background="#080E18">
-                    <Button x:Name="BackButton" Content="&lt;" Click="Back_Click" Width="30" Height="28"/>
-                    <Button x:Name="ForwardButton" Content="&gt;" Click="Forward_Click" Width="30" Height="28"/>
-                    <Button Content="R" Click="Reload_Click" Width="30" Height="28"/>
-                    <TabView x:Name="BrowserTabs"
-                             IsAddTabButtonVisible="True"
-                             AddTabButtonClick="BrowserTabs_AddTabButtonClick"
-                             TabCloseRequested="BrowserTabs_TabCloseRequested"
-                             SelectionChanged="BrowserTabs_SelectionChanged"
-                             Background="Transparent"
-                             Height="36"/>
-                </StackPanel>
-
-                <Grid Grid.Row="1" x:Name="ContentHost" Background="#05070C"/>
-            </Grid>
+            <Grid Grid.Column="1" x:Name="ContentHost" Background="#05070C"/>
         </Grid>
 
-        <Border Grid.Row="2" Background="#0A101A" Padding="12,0">
+        <Border Grid.Row="3" Background="#0A101A" Padding="12,0">
             <TextBlock x:Name="StatusText" Text="Ready" FontSize="11" Foreground="#5B7A9E" VerticalAlignment="Center"/>
         </Border>
     </Grid>
