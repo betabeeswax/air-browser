@@ -79,14 +79,54 @@ async function submitAirAccount(){
  }catch(error){showAccountMessage(error.message||"Sign-in failed. Please try again.",true)}
  finally{button.disabled=false;button.textContent=accountMode==="signin"?"Sign in":"Create AIR Account"}
 }
-function beginProviderSignIn(provider){
- showAccountMessage(provider+" sign-in needs its OAuth app credentials enabled in the AIR-ACCOUNTS project. The buttons are ready, but provider sign-in is not activated yet.",true);
+function beginProviderSignIn(provider){showAccountMessage("Opening "+provider+" sign-in in your browser…");send("providerSignIn",{provider});}
+
+function base64Bytes(bytes){let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s)}
+function fromBase64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
+async function deriveSyncKey(passphrase,salt){
+ const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(passphrase),"PBKDF2",false,["deriveKey"]);
+ return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
 }
+function syncCredentials(){const session=storedAirSession(),pass=$("syncPassphrase")?.value||"";if(!session?.access_token||!session?.user?.id){showAccountMessage("Sign in to AIR Account before using AIR Sync.",true);return null}if(pass.length<10){showAccountMessage("Use a sync passphrase with at least 10 characters.",true);return null}return {session,pass}}
+async function backupSyncData(data){
+ const creds=syncCredentials();if(!creds)return;
+ try{
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await deriveSyncKey(creds.pass,salt);
+  data.settings=JSON.parse(localStorage.getItem("airSettings")||"{}");data.profileMeta=JSON.parse(localStorage.getItem("airProfileMeta")||"{}");
+  const plain=new TextEncoder().encode(JSON.stringify(data));
+  const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,plain);
+  const packed=JSON.stringify({version:1,salt:base64Bytes(salt),iv:base64Bytes(iv),ciphertext:base64Bytes(new Uint8Array(encrypted))});
+  const response=await fetch(AIR_AUTH_URL+"/rest/v1/air_sync_profiles?on_conflict=user_id%2Cprofile_key",{method:"POST",headers:{apikey:AIR_AUTH_KEY,Authorization:"Bearer "+creds.session.access_token,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({user_id:creds.session.user.id,profile_key:data.profile,profile_name:data.profile,encrypted_payload:packed,encryption_version:1,updated_at:new Date().toISOString()})});
+  if(!response.ok)throw new Error((await response.text()).slice(0,240));
+  showAccountMessage("Encrypted backup saved for "+data.profile+". Your sync passphrase is needed to restore it.");toast("AIR Sync backup complete");
+ }catch(e){showAccountMessage("Backup failed: "+e.message,true)}
+}
+async function restoreSyncData(){
+ const creds=syncCredentials();if(!creds)return;
+ try{
+  const profile=window.currentProfile||"Personal";
+  const url=AIR_AUTH_URL+"/rest/v1/air_sync_profiles?select=profile_name,encrypted_payload&profile_key=eq."+encodeURIComponent(profile)+"&limit=1";
+  const response=await fetch(url,{headers:{apikey:AIR_AUTH_KEY,Authorization:"Bearer "+creds.session.access_token}});
+  if(!response.ok)throw new Error((await response.text()).slice(0,240));
+  const rows=await response.json();if(!rows.length){showAccountMessage("No cloud backup exists for this profile yet.",true);return}
+  const packed=JSON.parse(rows[0].encrypted_payload),salt=fromBase64(packed.salt),iv=fromBase64(packed.iv),cipher=fromBase64(packed.ciphertext);
+  const key=await deriveSyncKey(creds.pass,salt),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,cipher),data=JSON.parse(new TextDecoder().decode(plain));
+  if(data.profile!==profile)throw new Error("This backup belongs to a different profile.");
+  if(!confirm("Restore the cloud backup for "+profile+"? This replaces this profile's local bookmarks and history."))return;
+  if(data.settings)localStorage.setItem("airSettings",JSON.stringify(data.settings));
+  if(data.profileMeta)localStorage.setItem("airProfileMeta",JSON.stringify(data.profileMeta));
+  applySettings();send("syncImport",{payload:{bookmarks:data.bookmarks||[],history:data.history||[]}});
+  showAccountMessage("Backup decrypted and restored for "+profile+".");
+ }catch(e){showAccountMessage("Restore failed. Check your passphrase. "+e.message,true)}
+}
+
 $("accountModeIn").onclick=()=>setAccountMode("signin");
 $("accountModeUp").onclick=()=>setAccountMode("signup");
 $("accountSubmit").onclick=submitAirAccount;
 $("accountPassword").addEventListener("keydown",e=>{if(e.key==="Enter")submitAirAccount()});
 $("accountGoogle").onclick=()=>beginProviderSignIn("Google");
+$("syncBackup").onclick=()=>{if(!syncCredentials())return;send("syncExport")};
+$("syncRestore").onclick=restoreSyncData;
 $("accountMicrosoft").onclick=()=>beginProviderSignIn("Microsoft");
 $("accountTry").onclick=()=>{hidePanels();toast("You're using AIR without an account")};
 $("accountSignOut").onclick=()=>{localStorage.removeItem("airAuthSession");updateAccountView();setAccountMode("signin");showAccountMessage("You have signed out.");toast("Signed out")};
@@ -95,7 +135,7 @@ updateAccountView();setAccountMode("signin");
 
 $("clearBrowsing").onclick=()=>{if(confirm("Clear browsing history and saved cookies for this profile?"))send("clearData")};
 ["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
-window.chrome?.webview?.addEventListener("message",e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value)});
+window.chrome?.webview?.addEventListener("message",async e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value);else if(m.type==="authSession"){localStorage.setItem("airAuthSession",JSON.stringify(m.data));updateAccountView();showAccountMessage("Signed in to AIR Account. AIR Sync is now available.");toast("Signed in to AIR Account")}else if(m.type==="syncData"){await backupSyncData(m.data)}});
 applySettings();send("ready");
 document.addEventListener("keydown",e=>{
  const mod=e.ctrlKey||e.metaKey;
