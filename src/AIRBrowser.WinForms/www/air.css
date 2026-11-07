@@ -33,3 +33,20 @@ body.light .group-heading{color:#31516f}
 .tab.in-group{border-top:2px solid #559de8}.tab-group-label{flex:none;max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;color:#a9d2ff;padding:0 3px;font-size:9px;font-weight:700}.tab-group-label:hover{background:#ffffff18}.tab.group-collapsed{min-width:82px;max-width:110px}.tab.group-collapsed .name{display:none}.tab.group-collapsed .close{display:none}.tab{transition:opacity .18s ease,transform .18s ease,background .18s ease}.tab.dragging{opacity:.35;transform:scale(.96)}.tab.dragover{transform:translateY(-2px)}
 
 .data-actions{display:flex;gap:6px;flex-shrink:0}.data-actions button{margin:0;white-space:nowrap;font-size:11px}.settings-content .setting-row:has(.data-actions){align-items:center}@media(max-width:620px){.data-actions{flex-direction:column}.data-actions button{width:100%}}
+
+
+.account-link{width:100%;margin-top:12px;padding:10px;border:1px solid #397fc4;background:linear-gradient(110deg,#174d83,#1b3555);border-radius:9px;color:#fff;font-weight:650;text-align:left}
+#accountPanel{width:min(390px,calc(100vw - 28px));max-height:calc(100vh - 90px);overflow:auto}
+.account-body{padding:8px 14px 14px;text-align:center}
+.account-mark{width:48px;height:48px;margin:2px auto 10px;border-radius:15px;background:linear-gradient(145deg,#3694ff,#114c9c);display:grid;place-items:center;font-size:28px;font-weight:800}
+.account-body h3{margin:0 0 7px;font-size:18px}.account-body>p{font-size:11px;line-height:1.5;color:#9db3cf;margin:0 0 15px}
+.account-body label{display:grid;gap:5px;text-align:left;font-size:11px;color:#a9bfd9;margin:10px 0}
+.account-body label input{height:36px;border:1px solid #405673;border-radius:8px;background:#0f1a2b;color:white;padding:0 10px;outline:none}
+.account-body label input:focus{border-color:#398ce8}
+.account-submit,.account-create,.account-provider{width:100%;margin:6px 0 0;height:36px}
+.account-create,.account-provider{background:#1b2d46}
+.account-separator{display:flex;align-items:center;gap:10px;color:#7892b1;font-size:10px;margin:13px 0 5px}
+.account-separator:before,.account-separator:after{content:"";height:1px;background:#2b405b;flex:1}
+.account-note{margin:13px 0 0!important;font-size:10px!important}
+body.light #accountPanel{background:#f7faff;color:#14243a}
+body.light .account-body label input{background:white;color:#14243a}
