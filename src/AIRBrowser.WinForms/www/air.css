@@ -112,3 +112,25 @@ body.light .sync-card{background:#eaf2fc;border-color:#b8cce3}
 body.light .sync-card>b{color:#14243a}
 body.light .sync-card small{color:#536c8a}
 body.light .sync-card input{background:white;color:#14243a}
+
+
+/* Integrated frameless window controls and a clearer profile sign-in entry */
+.top{border-bottom:0;gap:5px;padding-right:0;user-select:none}
+.tab-strip{display:flex;align-items:center;gap:4px;flex:1;min-width:0;height:30px}
+.tab-strip .tabs{flex:1;min-width:0}
+.window-controls{display:flex;align-items:stretch;flex:none;height:30px;margin-left:2px}
+.window-controls button{width:43px;height:30px;padding:0;border:0;border-radius:0;background:transparent;color:#cbd8e8;font:16px Segoe UI;display:grid;place-items:center}
+.window-controls button:hover{background:#293b52}
+.window-controls #winClose:hover{background:#d93646;color:white}
+.window-controls #winMax{font-size:13px}
+.account-link{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:13px 12px;background:linear-gradient(110deg,#0878e8,#164a9b);border:1px solid #69b6ff;box-shadow:0 5px 20px #0878e855;border-radius:11px;font-size:13px;font-weight:800;text-align:center}
+.account-link:hover{filter:brightness(1.13);transform:translateY(-1px)}
+.provider-guide,.password-guide{margin:10px 0;padding:10px 11px;background:#101d30;border:1px solid #354e6d;border-radius:9px;text-align:left;color:#c6d7eb;font-size:11px;line-height:1.5}
+.provider-guide summary,.password-guide summary{cursor:pointer;color:#8fc5ff;font-weight:700;font-size:11px}
+.provider-guide ol,.password-guide ol{padding-left:18px;margin:10px 0}
+.provider-guide li,.password-guide li{margin:7px 0}
+.provider-guide code{overflow-wrap:anywhere;color:#b7d8ff;font-size:10px}
+.provider-guide p,.password-guide p{font-size:10px;color:#9eb4d0;margin:8px 0 0}
+body.light .provider-guide,body.light .password-guide{background:#edf4fc;color:#263b55;border-color:#bfd0e4}
+body.light .provider-guide p,body.light .password-guide p{color:#536c8a}
+@media(max-width:650px){.window-controls button{width:34px}.brand{display:none}.top{padding-left:4px}}
