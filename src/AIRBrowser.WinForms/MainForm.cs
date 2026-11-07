@@ -12,7 +12,9 @@ public sealed class MainForm : Form
     private readonly string _runtime;
     private readonly bool _portable;
     private readonly WebView2 _shell = new() { Dock = DockStyle.Fill };
-    private readonly Panel _shellPanel = new() { Dock = DockStyle.Top, Height = 67 };
+    private readonly Panel _shellPanel = new() { Dock = DockStyle.None, Height = 67 };
+    private readonly System.Windows.Forms.Timer _overlayAnimation = new() { Interval = 15 };
+    private int _overlayTarget = 67;
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
     private readonly List<TabEntry> _tabs = new();
     private readonly List<string> _groups = new() { "Ungrouped" };
@@ -41,9 +43,26 @@ public sealed class MainForm : Form
         try { if (File.Exists(ProfilesFile)) { var saved = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(ProfilesFile)); if (saved is { Count: > 0 }) { _profiles.Clear(); _profiles.AddRange(saved.Distinct(StringComparer.OrdinalIgnoreCase)); if (!_profiles.Contains("Personal")) _profiles.Insert(0, "Personal"); } } } catch { }
         _runtime=Path.Combine(AppContext.BaseDirectory,"FixedRuntime","Microsoft.WebView2.FixedVersionRuntime.156.0.4314.56.x64");
         _shellPanel.Controls.Add(_shell);
+        _browserPanel.Dock = DockStyle.Fill;
+        _shellPanel.Location = Point.Empty;
+        _shellPanel.Width = ClientSize.Width;
+        _shellPanel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         Controls.Add(_browserPanel); Controls.Add(_shellPanel);
+        _shellPanel.BringToFront();
+        Resize += (_, _) => { _shellPanel.Width = ClientSize.Width; _shellPanel.BringToFront(); };
+        _overlayAnimation.Tick += (_, _) =>
+        {
+            var delta = _overlayTarget - _shellPanel.Height;
+            if (Math.Abs(delta) <= 8)
+            {
+                _shellPanel.Height = _overlayTarget;
+                _overlayAnimation.Stop();
+                return;
+            }
+            _shellPanel.Height += Math.Sign(delta) * Math.Max(8, Math.Abs(delta) / 4);
+        };
         Shown+=async (_,_)=>{await InitializeShellAsync();StartAutomaticUpdates();};
-        FormClosing+=(_,_)=>{_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
+        FormClosing+=(_,_)=>{_overlayAnimation.Stop();_overlayAnimation.Dispose();_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
     }
 
     private static Icon? LoadIcon(){try{var p=Path.Combine(AppContext.BaseDirectory,"Assets","air-browser.ico");if(!File.Exists(p))p=Path.Combine(AppContext.BaseDirectory,"air-browser.ico");return File.Exists(p)?new Icon(p):null;}catch{return null;}}
@@ -82,7 +101,7 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();break;
-                case "overlay": _shellPanel.Height = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; break;
+                case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
                 case "newTab": await AddTabAsync();break;
                 case "select": Select(Get("id"));break;
                 case "close": Close(Get("id"));break;
