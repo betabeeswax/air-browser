@@ -443,6 +443,53 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             File.WriteAllText(dialog.FileName,csv,Encoding.UTF8);SetStatus("Password CSV exported — keep it secure");
         } catch(Exception ex){SetStatus("Password export failed: "+ex.Message);}
     }
+
+    private List<Dictionary<string,string>> LoadPasswordRecords()
+    {
+        try
+        {
+            if (!File.Exists(PasswordVaultFile)) return new();
+            var plain = ProtectedData.Unprotect(File.ReadAllBytes(PasswordVaultFile), null, DataProtectionScope.CurrentUser);
+            return JsonSerializer.Deserialize<List<Dictionary<string,string>>>(plain) ?? new();
+        }
+        catch { return new(); }
+    }
+    private void SavePasswordRecord(string url,string username,string password,string title)
+    {
+        Directory.CreateDirectory(ProfileFolder);
+        var records=LoadPasswordRecords();
+        records.RemoveAll(x=>string.Equals(x.GetValueOrDefault("url"),url,StringComparison.OrdinalIgnoreCase)&&x.GetValueOrDefault("username")==username);
+        records.Add(new Dictionary<string,string>{{"url",url},{"username",username},{"password",password},{"name",title}});
+        var encrypted=ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(records),null,DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(PasswordVaultFile,encrypted);
+    }
+    private async Task FillSavedPasswordAsync(WebView2 view)
+    {
+        try
+        {
+            if(view.CoreWebView2?.Source is not string source||!Uri.TryCreate(source,UriKind.Absolute,out var uri)||uri.Scheme!="https")return;
+            var origin=uri.GetLeftPart(UriPartial.Authority);
+            var record=LoadPasswordRecords().FirstOrDefault(x=>string.Equals(x.GetValueOrDefault("url"),origin,StringComparison.OrdinalIgnoreCase));
+            if(record is null)return;
+            var json=JsonSerializer.Serialize(new{username=record.GetValueOrDefault("username"),password=record.GetValueOrDefault("password")});
+            var script="(()=>{const d="+json+";const p=document.querySelector('input[type=password]');if(!p||p.value)return;const u=document.querySelector('input[autocomplete=username],input[type=email],input[name*=user i],input[type=text]');if(u&&!u.value){u.value=d.username||'';u.dispatchEvent(new Event('input',{bubbles:true}));u.dispatchEvent(new Event('change',{bubbles:true}));}p.value=d.password||'';p.dispatchEvent(new Event('input',{bubbles:true}));p.dispatchEvent(new Event('change',{bubbles:true}));return true})()";
+            await view.CoreWebView2.ExecuteScriptAsync(script);
+        }
+        catch { }
+    }
+    private void ManagePasswords()
+    {
+        var records=LoadPasswordRecords();
+        using var dialog=new Form{Text="AIR Password Manager — "+_profile,Size=new Size(720,480),MinimumSize=new Size(520,340),StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(13,23,38),ForeColor=Color.White};
+        var list=new ListView{Dock=DockStyle.Fill,View=View.Details,FullRowSelect=true,GridLines=true,BackColor=Color.FromArgb(20,34,54),ForeColor=Color.White};
+        list.Columns.Add("Website",260);list.Columns.Add("Username",280);
+        foreach(var r in records){var row=new ListViewItem(r.GetValueOrDefault("url")??"");row.SubItems.Add(r.GetValueOrDefault("username")??"");list.Items.Add(row);}
+        var buttons=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=48,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(8)};
+        var remove=new Button{Text="Delete selected",Width=125,Height=28,BackColor=Color.FromArgb(160,55,65),ForeColor=Color.White,FlatStyle=FlatStyle.Flat};
+        var close=new Button{Text="Close",Width=90,Height=28};
+        remove.Click+=(_,_)=>{if(list.SelectedIndices.Count==0)return;var index=list.SelectedIndices[0];var target=records[index];if(MessageBox.Show(dialog,"Delete the saved password for "+target.GetValueOrDefault("url")+"?","Delete password",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;records.RemoveAt(index);var encrypted=ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(records),null,DataProtectionScope.CurrentUser);File.WriteAllBytes(PasswordVaultFile,encrypted);list.Items.RemoveAt(index);};
+        close.Click+=(_,_)=>dialog.Close();buttons.Controls.Add(remove);buttons.Controls.Add(close);dialog.Controls.Add(list);dialog.Controls.Add(buttons);dialog.ShowDialog(this);
+    }
     private void SaveProfiles(){try{File.WriteAllText(ProfilesFile,JsonSerializer.Serialize(_profiles));}catch{}}
     private void CreateProfile(string name){name=name.Trim();if(name.Length==0||name.Length>32||name.Any(char.IsControl)){SetStatus("Choose a profile name up to 32 characters");return;}if(_profiles.Contains(name,StringComparer.OrdinalIgnoreCase)){SetStatus("That profile already exists");return;}_profiles.Add(name);SaveProfiles();SwitchProfile(name);SetStatus("Created profile: "+name);}
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
