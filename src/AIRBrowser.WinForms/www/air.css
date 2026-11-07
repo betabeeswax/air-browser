@@ -31,3 +31,5 @@ body[data-theme="rose"] .top,body[data-theme="rose"] .toolbar{background:#38202d
 body.light .group-heading{color:#31516f}
 
 .tab.in-group{border-top:2px solid #559de8}.tab-group-label{flex:none;max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;color:#a9d2ff;padding:0 3px;font-size:9px;font-weight:700}.tab-group-label:hover{background:#ffffff18}.tab.group-collapsed{min-width:82px;max-width:110px}.tab.group-collapsed .name{display:none}.tab.group-collapsed .close{display:none}.tab{transition:opacity .18s ease,transform .18s ease,background .18s ease}.tab.dragging{opacity:.35;transform:scale(.96)}.tab.dragover{transform:translateY(-2px)}
+
+.data-actions{display:flex;gap:6px;flex-shrink:0}.data-actions button{margin:0;white-space:nowrap;font-size:11px}.settings-content .setting-row:has(.data-actions){align-items:center}@media(max-width:620px){.data-actions{flex-direction:column}.data-actions button{width:100%}}
