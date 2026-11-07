@@ -23,6 +23,8 @@ public sealed class MainForm : Form
     private bool _verticalTabs;
     private bool _sidebarExpanded = true;
     private bool _creatingTab;
+    private TabPage? _dragTab;
+    private readonly HashSet<string> _tabGroups = new(StringComparer.OrdinalIgnoreCase);
 
     private string CurrentProfile => _profile.SelectedItem?.ToString() ?? "Personal";
     private string ProfileData => Path.Combine(_dataRoot, "Profiles", SafeName(CurrentProfile));
@@ -85,7 +87,14 @@ public sealed class MainForm : Form
         Controls.Add(root);
 
         var brandBar = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(13, 23, 38), Padding = new Padding(12, 7, 12, 7) };
-        var logo = new Label { Text = "A", BackColor = Color.FromArgb(23, 104, 214), ForeColor = Color.White, Font = new Font("Segoe UI", 18, FontStyle.Bold), TextAlign = ContentAlignment.MiddleCenter, Size = new Size(34, 34), Location = new Point(12, 8) };
+        var logo = new PictureBox { Size = new Size(36, 36), Location = new Point(12, 7), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent };
+        try
+        {
+            var logoPath = Path.Combine(AppContext.BaseDirectory, "air-browser.ico");
+            if (File.Exists(logoPath)) using (var appIcon = new Icon(logoPath)) logo.Image = appIcon.ToBitmap();
+            else logo.Image = Icon?.ToBitmap();
+        }
+        catch { }
         var brand = new Label { Text = "AIR", ForeColor = Color.FromArgb(235, 244, 255), Font = new Font("Segoe UI", 15, FontStyle.Bold), AutoSize = true, Location = new Point(55, 12) };
         _profile.DropDownStyle = ComboBoxStyle.DropDownList;
         _profile.Width = 130;
@@ -208,7 +217,7 @@ public sealed class MainForm : Form
         _creatingTab = true;
         try
         {
-            var page = new TabPage("New tab") { BackColor = Color.FromArgb(8, 13, 22), Padding = Padding.Empty };
+            var page = new TabPage("New tab") { BackColor = Color.FromArgb(8, 13, 22), Padding = Padding.Empty, Tag = "Ungrouped", AccessibleName = "New tab" };
             var view = new WebView2 { Dock = DockStyle.Fill, CreationProperties = null };
             page.Controls.Add(view);
             _tabs.TabPages.Add(page);
@@ -299,6 +308,71 @@ public sealed class MainForm : Form
         if (string.IsNullOrWhiteSpace(title)) title = "New tab";
         page.Text = title.Length > 24 ? title[..24] + "…" : title;
         if (ActivePage == page) Text = (title == "New tab" ? "AIR Browser" : title + " - AIR Browser");
+    }
+
+    private void Tabs_MouseDown(object? sender, MouseEventArgs e)
+    {
+        var index = _tabs.GetTabRect(0).Contains(e.Location) ? 0 :
+            Enumerable.Range(0, _tabs.TabCount).FirstOrDefault(i => _tabs.GetTabRect(i).Contains(e.Location), -1);
+        _dragTab = index >= 0 && index < _tabs.TabCount ? _tabs.TabPages[index] : null;
+    }
+
+    private void Tabs_MouseMove(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left && _dragTab is not null)
+        {
+            var page = _dragTab;
+            _dragTab = null;
+            _tabs.DoDragDrop(page, DragDropEffects.Move);
+        }
+    }
+
+    private void Tabs_DragOver(object? sender, DragEventArgs e)
+    {
+        e.Effect = e.Data?.GetDataPresent(typeof(TabPage)) == true ? DragDropEffects.Move : DragDropEffects.None;
+    }
+
+    private void Tabs_DragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(typeof(TabPage)) is not TabPage source) return;
+        var point = _tabs.PointToClient(new Point(e.X, e.Y));
+        var targetIndex = Enumerable.Range(0, _tabs.TabCount).FirstOrDefault(i => _tabs.GetTabRect(i).Contains(point), -1);
+        if (targetIndex < 0 || targetIndex >= _tabs.TabCount) return;
+        var target = _tabs.TabPages[targetIndex];
+        if (ReferenceEquals(source, target)) return;
+
+        var sourceGroup = source.Tag?.ToString() ?? "Ungrouped";
+        var targetGroup = target.Tag?.ToString() ?? "Ungrouped";
+        string group;
+        if (targetGroup != "Ungrouped") group = targetGroup;
+        else if (sourceGroup != "Ungrouped") group = sourceGroup;
+        else
+        {
+            var number = 1;
+            while (_tabGroups.Contains("Group " + number)) number++;
+            group = "Group " + number;
+            _tabGroups.Add(group);
+            _groups.Items.Add(group);
+        }
+
+        SetPageGroup(source, group);
+        SetPageGroup(target, group);
+        _tabs.SelectedTab = source;
+        _status.Text = $"Grouped tabs in {group}";
+    }
+
+    private void SetPageGroup(TabPage page, string group)
+    {
+        page.Tag = group;
+        ApplyPageCaption(page);
+    }
+
+    private static void ApplyPageCaption(TabPage page)
+    {
+        var title = string.IsNullOrWhiteSpace(page.AccessibleName) ? "New tab" : page.AccessibleName;
+        var shortTitle = title.Length > 21 ? title[..21] + "…" : title;
+        var group = page.Tag?.ToString() ?? "Ungrouped";
+        page.Text = group == "Ungrouped" ? shortTitle : "● " + group + " · " + shortTitle;
     }
 
     private void SaveBookmark()
