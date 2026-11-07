@@ -83,7 +83,6 @@ public sealed class MainForm : Form
         try{
             var env=await EnvironmentForAsync("AIR-Interface");
             await _shell.EnsureCoreWebView2Async(env);
-            _shell.CoreWebView2Controller.DefaultBackgroundColor = Color.Transparent;
             _shell.CoreWebView2.Settings.AreDefaultContextMenusEnabled=false;
             _shell.CoreWebView2.WebMessageReceived+=ShellMessageReceived;
             var html=Path.Combine(AppContext.BaseDirectory,"UI","index.html");
