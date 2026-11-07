@@ -209,9 +209,8 @@ public sealed class MainForm : Form
                 "if ($p.ExitCode -ne 0) { throw ('Installer exited with code ' + $p.ExitCode) } } " +
                 "finally { Start-Process -FilePath $app }\n";
             await File.WriteAllTextAsync(updaterScript, script);
-            var command = "-NoProfile -ExecutionPolicy Bypass -File \"" + updaterScript + "\" \"" + installer + "\" \"" + app + "\" " + Environment.ProcessId;
-            var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
-            Process.Start(new ProcessStartInfo("powershell.exe", "-NoProfile -WindowStyle Hidden -EncodedCommand " + encoded)
+            var command = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + updaterScript + "\" \"" + installer + "\" \"" + app + "\" " + Environment.ProcessId;
+            Process.Start(new ProcessStartInfo("powershell.exe", command)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true
