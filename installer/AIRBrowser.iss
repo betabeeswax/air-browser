@@ -9,7 +9,7 @@ DefaultGroupName=AIR Browser
 DisableProgramGroupPage=yes
 OutputDir=..\artifacts
 OutputBaseFilename=AIR-Browser-Setup
-UninstallDisplayIcon={app}\AIRBrowser.WinUI.exe
+UninstallDisplayIcon={app}\AIRBrowser.exe
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -24,8 +24,8 @@ Uninstallable=yes
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\AIR Browser"; Filename: "{app}\AIRBrowser.WinUI.exe"
-Name: "{autodesktop}\AIR Browser"; Filename: "{app}\AIRBrowser.WinUI.exe"; Tasks: desktopicon
+Name: "{autoprograms}\AIR Browser"; Filename: "{app}\AIRBrowser.exe"
+Name: "{autodesktop}\AIR Browser"; Filename: "{app}\AIRBrowser.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
