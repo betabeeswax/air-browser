@@ -6,7 +6,6 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <RootNamespace>AIRBrowser</RootNamespace>
     <AssemblyName>AIRBrowser</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
