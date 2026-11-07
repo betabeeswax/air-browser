@@ -22,3 +22,7 @@ body[data-theme="light"] .tab.active{background:#c9e0fa;color:#12345b}
 .profile-editor{display:grid;gap:9px;padding:12px;margin:12px 0;background:#1c2d45;border:1px solid #38506e;border-radius:10px;font-size:12px}
 .profile-editor input,.profile-editor select{background:#0f1a2b;color:white;border:1px solid #405673;border-radius:7px;padding:8px}
 .profile-editor label{display:flex;align-items:center;justify-content:space-between}
+
+body[data-theme="sunset"] .top,body[data-theme="sunset"] .toolbar{background:#3a211e;border-color:#754638}body[data-theme="sunset"] .tab{background:#512d29;border-color:#895344}body[data-theme="sunset"] .tab.active,body[data-theme="sunset"] .go{background:#c65d36;border-color:#e47b4f}
+body[data-theme="rose"] .top,body[data-theme="rose"] .toolbar{background:#38202d;border-color:#6b3c55}body[data-theme="rose"] .tab{background:#4b2a3d;border-color:#87516e}body[data-theme="rose"] .tab.active,body[data-theme="rose"] .go{background:#b64f83;border-color:#d46a9e}
+.photo-pick{display:flex;flex-direction:column;gap:6px;color:#a9bfd9}.photo-pick input{max-width:100%;font-size:11px}
