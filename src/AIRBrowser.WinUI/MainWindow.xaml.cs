@@ -267,7 +267,7 @@ public sealed partial class MainWindow : Window
             web.CoreWebView2.NewWindowRequested += (sender, e) =>
             {
                 e.Handled = true;
-                AddTabAsync(e.Uri);
+                _ = AddTabAsync(e.Uri);
             };
             startPage = ShowStartPage(host);
             if (!string.IsNullOrWhiteSpace(address)) NavigateEntry(entry, address);
