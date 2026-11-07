@@ -6,13 +6,21 @@ using System.Net.Http;
 
 namespace AIRBrowser;
 
+internal sealed class TransparentOverlayPanel : Panel
+{
+    protected override CreateParams CreateParams
+    {
+        get { var cp = base.CreateParams; cp.ExStyle |= 0x00000020; return cp; }
+    }
+}
+
 public sealed class MainForm : Form
 {
     private readonly string _root;
     private readonly string _runtime;
     private readonly bool _portable;
     private readonly WebView2 _shell = new() { Dock = DockStyle.Fill };
-    private readonly Panel _shellPanel = new() { Dock = DockStyle.None, Height = 67, BackColor = Color.Transparent };
+    private readonly TransparentOverlayPanel _shellPanel = new() { Dock = DockStyle.None, Height = 67, BackColor = Color.Transparent };
     private readonly System.Windows.Forms.Timer _overlayAnimation = new() { Interval = 15 };
     private int _overlayTarget = 67;
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
