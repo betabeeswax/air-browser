@@ -143,6 +143,11 @@ public sealed class MainForm : Form
             switch(type){
                 case "ready": PushState();break;
                 case "providerSignIn": await StartProviderSignInAsync(Get("provider"));break;
+                case "windowMinimize": WindowState=FormWindowState.Minimized;break;
+                case "windowMaximize": WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;break;
+                case "windowClose": Close();break;
+                case "dragWindow": if(WindowState!=FormWindowState.Maximized){ReleaseCapture();SendMessage(Handle,0x00A1,(IntPtr)2,IntPtr.Zero);}break;
+                case "managePasswords": ManagePasswords();break;
                 case "syncExport": ExportSyncData();break;
                 case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))ImportSyncData(syncPayload);break;
                 case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
