@@ -221,8 +221,8 @@ public sealed class MainForm : Form
             view.CoreWebView2.Settings.IsStatusBarEnabled = false;
             view.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
             view.CoreWebView2.DocumentTitleChanged += (_, _) => UpdateTabTitle(page, view);
-            view.CoreWebView2.NavigationStarting += (_, e) => { if (IsHandleCreated) BeginInvoke(() => { if (ActivePage == page) _address.Text = e.Uri; }); };
-            view.CoreWebView2.NavigationCompleted += (_, _) => { if (IsHandleCreated) BeginInvoke(() => { UpdateTabTitle(page, view); if (ActivePage == page) UpdateAddress(); }); };
+            view.CoreWebView2.NavigationStarting += (_, e) => { if (IsHandleCreated) BeginInvoke(new Action(() => { if (ActivePage == page) _address.Text = e.Uri; })); };
+            view.CoreWebView2.NavigationCompleted += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(() => { UpdateTabTitle(page, view); if (!string.IsNullOrWhiteSpace(view.CoreWebView2?.Source)) { _history.Add(view.CoreWebView2.Source); if (_history.Count > 500) _history.RemoveAt(0); SaveProfileData(); } if (ActivePage == page) UpdateAddress(); })); };
             view.CoreWebView2.NewWindowRequested += (_, e) => { e.Handled = true; CreateTab(e.Uri); };
             view.CoreWebView2.DownloadStarting += (_, e) =>
             {
