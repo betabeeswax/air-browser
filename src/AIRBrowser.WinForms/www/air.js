@@ -12,7 +12,7 @@ function render(){
   b.draggable=true;b.dataset.id=t.id;b.innerHTML='<span class="name"></span><button class="close" title="Close tab">×</button>';
   if(first){const label=document.createElement("button");label.className="tab-group-label";label.textContent=(collapsed?"▸ ":"▾ ")+group;label.title=collapsed?"Expand group":"Collapse group";label.draggable=false;label.onclick=e=>{e.stopPropagation();collapsedGroups.has(group)?collapsedGroups.delete(group):collapsedGroups.add(group);render()};b.prepend(label)}
   b.querySelector(".name").textContent=collapsed&&first?"":t.title;
-  b.addEventListener("click",e=>{if(!e.target.closest(".close")&&!e.target.closest(".tab-group-label"))send("select",{id:t.id})});
+  b.addEventListener("click",e=>{if(!e.target.closest(".close")&&!e.target.closest(".tab-group-label")){active=t.id;render();send("select",{id:t.id})}});
   b.querySelector(".close").addEventListener("click",e=>{e.stopPropagation();send("close",{id:t.id})});
   b.addEventListener("dragstart",e=>{dragId=t.id;e.dataTransfer.setData("text/plain",t.id);e.dataTransfer.effectAllowed="move";requestAnimationFrame(()=>b.classList.add("dragging"))});
   b.addEventListener("dragend",e=>{b.classList.remove("dragging");if(dragId===t.id&&(e.clientX<0||e.clientY<0||e.clientX>innerWidth||e.clientY>innerHeight))send("detachTab",{id:t.id});dragId=null});
