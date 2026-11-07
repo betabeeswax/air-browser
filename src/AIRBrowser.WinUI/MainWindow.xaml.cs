@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window
     private bool _changingGroup;
     private bool _sidebarExpanded = true;
     private bool _verticalMode;
+    private TabView BrowserTabs { get; } = new();
     private WebView2? ActiveWeb => (BrowserTabs.SelectedItem as TabViewItem)?.Tag as WebView2;
     private TabEntry? ActiveEntry => _tabs.FirstOrDefault(t => t.Web == ActiveWeb);
     private string ProfileFolder => Path.Combine(_root, "Profiles", SafeName(_profile));
@@ -64,6 +65,16 @@ public sealed partial class MainWindow : Window
         {
             App.SetMainWindowXamlLoading(false);
         }
+
+        // Build TabView in code to keep its template and events out of startup XAML.
+        BrowserTabs.Height = 42;
+        BrowserTabs.IsAddTabButtonVisible = true;
+        BrowserTabs.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 13, 23, 38));
+        BrowserTabs.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 234, 243, 255));
+        BrowserTabs.AddTabButtonClick += BrowserTabs_AddTabButtonClick;
+        BrowserTabs.TabCloseRequested += BrowserTabs_TabCloseRequested;
+        BrowserTabs.SelectionChanged += BrowserTabs_SelectionChanged;
+        BrowserTabsHost.Content = BrowserTabs;
 
         // Register keyboard shortcuts in code instead of XAML. This avoids
         // WinUI XAML loader failures while keeping the same browser shortcuts.
