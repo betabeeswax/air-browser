@@ -102,7 +102,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Spacing="6">
-                        <TextBlock Text="GROUPS" FontSize="10" Foreground="#4A6688"/>
+                        <TextBlock x:Name="GroupLabel" Text="GROUPS" FontSize="10" Foreground="#4A6688"/>
                         <ComboBox x:Name="TabGroupPicker" PlaceholderText="Move tab to group"
                                   SelectionChanged="TabGroupPicker_SelectionChanged"/>
                         <Button x:Name="NewGroupButton" Content="+ New group" Click="NewGroup_Click"
