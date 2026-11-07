@@ -48,7 +48,7 @@ function setAccountMode(mode){
  $("accountSubmit").textContent=mode==="signin"?"Sign in":"Create AIR Account";
  $("accountTitle").textContent=mode==="signin"?"Welcome back":"Create your AIR Account";
  $("accountHeading").textContent=mode==="signin"?"Good to see you again.":"One account for all of AIR.";
- $("accountIntro").textContent=mode==="signin"?"Sign in to your AIR Account. Browsing also works without an account.":"Create an AIR Account for your AIR profile and upcoming AIR Sync features.";
+ $("accountIntro").textContent=mode==="signin"?"Sign in to your AIR Account. Browsing also works without an account.":"Create an AIR Account for your AIR profile and secure AIR Sync.";
  $("accountPassword").autocomplete=mode==="signin"?"current-password":"new-password";
 }
 function showAccountMessage(message,isError=false){const el=$("accountMessage");el.textContent=message;el.style.color=isError?"#ff9b9b":""}
@@ -61,7 +61,7 @@ function updateAccountView(){
  $("accountSubmit").classList.toggle("hidden",signed);
  $("accountGoogle").classList.toggle("hidden",signed);$("accountMicrosoft").classList.toggle("hidden",signed);
  $("accountSignedEmail").textContent=session?.user?.email||"Signed in to AIR Account";
- if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is signed in on this device. Sync features will be connected separately."; $("accountTitle").textContent="Your account";}
+ if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is ready. You can securely back up and restore this browser profile with AIR Sync."; $("accountTitle").textContent="Your account";}
 }
 async function submitAirAccount(){
  const email=$("accountEmail").value.trim(),password=$("accountPassword").value;
@@ -87,9 +87,9 @@ async function deriveSyncKey(passphrase,salt){
  const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(passphrase),"PBKDF2",false,["deriveKey"]);
  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
 }
-function syncCredentials(){const session=storedAirSession(),pass=$("syncPassphrase")?.value||"";if(!session?.access_token||!session?.user?.id){showAccountMessage("Sign in to AIR Account before using AIR Sync.",true);return null}if(pass.length<10){showAccountMessage("Use a sync passphrase with at least 10 characters.",true);return null}return {session,pass}}
+async function syncCredentials(){let session=storedAirSession();const pass=$("syncPassphrase")?.value||"";if(!session?.access_token||!session?.user?.id){showAccountMessage("Sign in to AIR Account before using AIR Sync.",true);return null}if(pass.length<10){showAccountMessage("Use a sync passphrase with at least 10 characters.",true);return null}if(session.refresh_token){const refreshed=await fetch(AIR_AUTH_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:AIR_AUTH_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:session.refresh_token})});if(refreshed.ok){session=await refreshed.json();localStorage.setItem("airAuthSession",JSON.stringify(session));updateAccountView()}else throw new Error("Your AIR Account session expired. Sign in again.")}return {session,pass}}
 async function backupSyncData(data){
- const creds=syncCredentials();if(!creds)return;
+ const creds=await syncCredentials();if(!creds)return;
  try{
   const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await deriveSyncKey(creds.pass,salt);
   data.settings=JSON.parse(localStorage.getItem("airSettings")||"{}");data.profileMeta=JSON.parse(localStorage.getItem("airProfileMeta")||"{}");
@@ -102,7 +102,7 @@ async function backupSyncData(data){
  }catch(e){showAccountMessage("Backup failed: "+e.message,true)}
 }
 async function restoreSyncData(){
- const creds=syncCredentials();if(!creds)return;
+ const creds=await syncCredentials();if(!creds)return;
  try{
   const profile=window.currentProfile||"Personal";
   const url=AIR_AUTH_URL+"/rest/v1/air_sync_profiles?select=profile_name,encrypted_payload&profile_key=eq."+encodeURIComponent(profile)+"&limit=1";
@@ -125,7 +125,7 @@ $("accountModeUp").onclick=()=>setAccountMode("signup");
 $("accountSubmit").onclick=submitAirAccount;
 $("accountPassword").addEventListener("keydown",e=>{if(e.key==="Enter")submitAirAccount()});
 $("accountGoogle").onclick=()=>beginProviderSignIn("Google");
-$("syncBackup").onclick=()=>{if(!syncCredentials())return;send("syncExport")};
+$("syncBackup").onclick=()=>{send("syncExport")};
 $("syncRestore").onclick=restoreSyncData;
 $("accountMicrosoft").onclick=()=>beginProviderSignIn("Microsoft");
 $("accountTry").onclick=()=>{hidePanels();toast("You're using AIR without an account")};
