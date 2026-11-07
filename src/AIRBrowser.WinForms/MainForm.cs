@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace AIRBrowser;
 
@@ -44,10 +45,22 @@ public sealed class MainForm : Form
     private bool _updateCheckRunning;
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
     private static string Safe(string s)=>string.Concat(s.Select(c=>char.IsLetterOrDigit(c)||c=='-'?c:'_'));
+    [DllImport("user32.dll")] private static extern bool ReleaseCapture();
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd,int msg,IntPtr wParam,IntPtr lParam);
+    protected override void WndProc(ref Message m)
+    {
+        const int WM_NCHITTEST=0x84, HTCLIENT=1;
+        base.WndProc(ref m);
+        if(m.Msg!=WM_NCHITTEST||m.Result.ToInt32()!=HTCLIENT||WindowState==FormWindowState.Maximized)return;
+        var p=PointToClient(Cursor.Position);const int edge=7;
+        bool left=p.X<=edge,right=p.X>=ClientSize.Width-edge,top=p.Y<=edge,bottom=p.Y>=ClientSize.Height-edge;
+        if(top&&left)m.Result=(IntPtr)13;else if(top&&right)m.Result=(IntPtr)14;else if(bottom&&left)m.Result=(IntPtr)16;else if(bottom&&right)m.Result=(IntPtr)17;
+        else if(left)m.Result=(IntPtr)10;else if(right)m.Result=(IntPtr)11;else if(top)m.Result=(IntPtr)12;else if(bottom)m.Result=(IntPtr)15;
+    }
 
     public MainForm(string? initialUrl = null, string? profile = null)
     {
-        Text="AIR Browser"; Name="AIRBrowser"; ShowIcon=true; MinimumSize=new Size(900,600); Size=new Size(1440,900);
+        Text="AIR Browser"; Name="AIRBrowser"; FormBorderStyle=FormBorderStyle.None; ShowIcon=true; MinimumSize=new Size(900,600); Size=new Size(1440,900);
         StartPosition=FormStartPosition.CenterScreen; BackColor=Color.FromArgb(8,13,22); Icon=LoadIcon(); if (!string.IsNullOrWhiteSpace(profile)) _profile = profile;
         _portable=File.Exists(Path.Combine(AppContext.BaseDirectory,"portable.mode"));
         var portable=_portable;
