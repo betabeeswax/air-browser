@@ -289,56 +289,56 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private async Task StartProviderSignInAsync(string providerName)
     {
         var provider = providerName.Equals("Microsoft", StringComparison.OrdinalIgnoreCase) ? "azure" : "google";
-        var listener = new HttpListener();
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
         try
         {
-            using var probe = new TcpListener(IPAddress.Loopback, 0);
-            probe.Start();
-            var port = ((IPEndPoint)probe.LocalEndpoint).Port;
-            probe.Stop();
-            var redirect = $"http://localhost:{port}/auth/callback/";
-            listener.Prefixes.Add(redirect);
             listener.Start();
-
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var redirect = $"http://localhost:{port}/auth/callback/";
             var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
             var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
             var authUrl = AIR_AUTH_URL + "/auth/v1/authorize?provider=" + provider +
                 "&redirect_to=" + Uri.EscapeDataString(redirect) +
                 "&code_challenge=" + Uri.EscapeDataString(challenge) +
                 "&code_challenge_method=s256" +
-                (provider == "azure" ? "&scopes=email" : "");
+                (provider == "azure" ? "&scopes=email" : "") + "&prompt=select_account";
             SetStatus("Opening " + providerName + " sign-in…");
             Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
 
-            var context = await listener.GetContextAsync().WaitAsync(TimeSpan.FromMinutes(4));
-            var code = context.Request.QueryString["code"];
-            var error = context.Request.QueryString["error_description"] ?? context.Request.QueryString["error"];
+            using var client = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromMinutes(4));
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, true);
+            var requestLine = await reader.ReadLineAsync();
+            string? line;
+            do { line = await reader.ReadLineAsync(); } while (!string.IsNullOrEmpty(line));
+            var rawTarget = requestLine?.Split(' ').ElementAtOrDefault(1) ?? "/";
+            var requestUri = new Uri(new Uri(redirect), rawTarget);
+            var query = System.Web.HttpUtility.ParseQueryString(requestUri.Query);
+            var code = query["code"];
+            var error = query["error_description"] ?? query["error"];
             var page = string.IsNullOrWhiteSpace(code)
-                ? "<h2>AIR sign-in did not finish</h2><p>You can close this window and try again in AIR Browser.</p>"
-                : "<h2>You're signed in to AIR</h2><p>You can return to AIR Browser now.</p>";
+                ? "<h2>Sign-in did not finish</h2><p>Return to AIR Browser and check the message there.</p>"
+                : "<h2>You're signed in!</h2><p>You can close this tab and return to AIR Browser.</p>";
             var bytes = Encoding.UTF8.GetBytes("<!doctype html><meta charset='utf-8'><title>AIR Account</title><body style='font:18px Segoe UI;background:#101827;color:white;padding:48px'>" + page + "</body>");
-            context.Response.ContentType = "text/html; charset=utf-8";
-            context.Response.ContentLength64 = bytes.Length;
-            await context.Response.OutputStream.WriteAsync(bytes);
-            context.Response.Close();
+            var header = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bytes.Length + "\r\nConnection: close\r\n\r\n");
+            await stream.WriteAsync(header); await stream.WriteAsync(bytes); await stream.FlushAsync();
 
             if (string.IsNullOrWhiteSpace(code))
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "Sign-in was cancelled or no authorization code was returned." : error);
-
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "The provider did not return a sign-in code. Check that it is enabled in Supabase." : error);
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             var body = JsonSerializer.Serialize(new { auth_code = code, code_verifier = verifier });
             using var response = await http.PostAsync(AIR_AUTH_URL + "/auth/v1/token?grant_type=pkce",
                 new StringContent(body, Encoding.UTF8, "application/json"));
             var json = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException("AIR Account sign-in failed: " + json);
+                throw new InvalidOperationException("Supabase could not finish sign-in. Check provider Client ID/Secret and the localhost redirect URL. " + json);
             using var sessionDoc = JsonDocument.Parse(json);
             Send("authSession", sessionDoc.RootElement.Clone());
-            SetStatus("Signed in to AIR Account");
+            SetStatus("Signed in to AIR Account for " + _profile);
         }
-        catch (TimeoutException) { SetStatus("Sign-in timed out. Please try again."); }
-        catch (Exception ex) { SetStatus("AIR Account sign-in: " + ex.Message); Send("toast", new { value = "Sign-in could not finish: " + ex.Message }); }
-        finally { if (listener.IsListening) listener.Stop(); listener.Close(); }
+        catch (TimeoutException) { SetStatus("Sign-in timed out. Try again."); Send("toast", new { value = "Sign-in timed out. Check the provider setup guide." }); }
+        catch (Exception ex) { SetStatus("AIR Account sign-in: " + ex.Message); Send("toast", new { value = "Sign-in failed: " + ex.Message }); }
+        finally { listener.Stop(); }
     }
 
     private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+','-').Replace('/','_');
