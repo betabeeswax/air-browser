@@ -39,6 +39,10 @@ jobs:
       - name: Set up Visual Studio MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Generate AIR Browser app icon
+        shell: pwsh
+        run: ./scripts/create-icon.ps1
+
       - name: Restore
         run: msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
 
