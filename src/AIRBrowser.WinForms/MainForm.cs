@@ -289,12 +289,11 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private async Task StartProviderSignInAsync(string providerName)
     {
         var provider = providerName.Equals("Microsoft", StringComparison.OrdinalIgnoreCase) ? "azure" : "google";
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        using var listener = new TcpListener(IPAddress.Loopback, 43827);
         try
         {
             listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            var redirect = $"http://localhost:{port}/auth/callback/";
+            var redirect = "http://localhost:43827/auth/callback/";
             var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
             var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
             var authUrl = AIR_AUTH_URL + "/auth/v1/authorize?provider=" + provider +
