@@ -58,14 +58,24 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
+
             <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,6,8,6" VerticalAlignment="Center">
                 <Button x:Name="BackButton" Content="&lt;" Click="Back_Click" Width="30" Height="28"/>
                 <Button x:Name="ForwardButton" Content="&gt;" Click="Forward_Click" Width="30" Height="28"/>
                 <Button Content="R" Click="Reload_Click" Width="30" Height="28"/>
             </StackPanel>
-            <!-- TabView is created in code to avoid XAML parse issues -->
-            <Grid x:Name="TabsHost" Grid.Column="1" Margin="0,4,8,4"/>
+
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                          HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                <StackPanel x:Name="BrowserTabsPanel" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"/>
+            </ScrollViewer>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,10,0" VerticalAlignment="Center">
+                <Button x:Name="HorizontalTabsButton" Content="H" Click="HorizontalTabs_Click" Width="30" Height="28" ToolTipService.ToolTip="Horizontal tabs"/>
+                <Button x:Name="VerticalTabsButton" Content="V" Click="VerticalTabs_Click" Width="30" Height="28" ToolTipService.ToolTip="Vertical tabs"/>
+            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="2">
