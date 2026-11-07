@@ -13,6 +13,7 @@ using System.Text;
 using System.Text.Json;
 using Windows.Foundation;
 using Windows.System;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace AIRBrowser;
 
@@ -179,13 +180,36 @@ public sealed partial class MainWindow : Window
 
     private async Task AddTabAsync(string? address = null)
     {
-        var tabButton = new Button { Content = "New tab", MinWidth = 110, Padding = new Thickness(10, 4, 10, 4), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 25, 39, 58)), Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) };
+        var tabButton = new Button
+        {
+            Content = "New tab",
+            MinWidth = 132,
+            MaxWidth = 220,
+            Height = 32,
+            Padding = new Thickness(12, 4, 12, 4),
+            CornerRadius = new CornerRadius(9),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 28, 42, 60)),
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+        };
         var host = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         var web = new WebView2();
         host.Children.Add(web);
         var entry = new TabEntry(tabButton, web, host);
         tabButton.Click += (_, _) => SelectTab(entry);
-        var closeButton = new Button { Content = "×", Padding = new Thickness(6, 2, 6, 2), MinWidth = 28 };
+        tabButton.CanDrag = true;
+        tabButton.DragStarting += (_, e) =>
+        {
+            e.Data.SetText(entry.Id.ToString());
+            e.AllowedOperations = DataPackageOperation.Move;
+        };
+        tabButton.AllowDrop = true;
+        tabButton.DragOver += (_, e) =>
+        {
+            e.AcceptedOperation = DataPackageOperation.Move;
+            e.Handled = true;
+        };
+        tabButton.Drop += async (_, e) => await DropTabOnTabAsync(e, entry);
+        var closeButton = new Button { Content = "×", Padding = new Thickness(6, 2, 6, 2), MinWidth = 28, Height = 30, CornerRadius = new CornerRadius(8) };
         closeButton.Click += (_, _) => CloseTab(entry);
         var tabVisual = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
         tabVisual.Children.Add(tabButton);
@@ -363,32 +387,89 @@ public sealed partial class MainWindow : Window
     private void RefreshTabGroupsBar()
     {
         TabGroupsBar.Children.Clear();
-        var activeGroup = ActiveEntry?.Group ?? "Ungrouped";
-        foreach (var group in _groups)
+        foreach (var group in _groups.Where(g => g != "Ungrouped"))
         {
+            var count = _tabs.Count(t => t.Group == group);
             var button = new Button
             {
-                Content = (group == activeGroup ? "● " : "") + group,
-                Padding = new Thickness(14, 5, 14, 5),
+                Content = $"▦  {group}  ({count})",
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(11, 7, 9, 7),
+                CornerRadius = new CornerRadius(8),
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    group == activeGroup
-                        ? Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)
-                        : Microsoft.UI.ColorHelper.FromArgb(255, 25, 39, 58)),
+                    ActiveEntry?.Group == group
+                        ? Microsoft.UI.ColorHelper.FromArgb(255, 29, 91, 151)
+                        : Microsoft.UI.ColorHelper.FromArgb(255, 25, 37, 53)),
                 Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
             };
+            ToolTipService.SetToolTip(button, "Click to open this group. Drag a tab here to add it.");
             button.Click += (_, _) =>
             {
                 var first = _tabs.FirstOrDefault(t => t.Group == group);
                 if (first is not null) SelectTab(first);
-                else if (group != "Ungrouped" && ActiveEntry is not null) AssignGroup(ActiveEntry, group);
-                RefreshTabGroupsBar();
             };
+            button.AllowDrop = true;
+            button.DragOver += (_, e) =>
+            {
+                e.AcceptedOperation = DataPackageOperation.Move;
+                e.Handled = true;
+            };
+            button.Drop += async (_, e) => await DropTabIntoGroupAsync(e, group);
             TabGroupsBar.Children.Add(button);
         }
-        var add = new Button { Content = "＋", Padding = new Thickness(12, 5, 12, 5) };
-        ToolTipService.SetToolTip(add, "Create a tab group");
-        add.Click += NewGroup_Click;
-        TabGroupsBar.Children.Add(add);
+        var ungrouped = new Button
+        {
+            Content = $"＋  Ungrouped  ({_tabs.Count(t => t.Group == "Ungrouped")})",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(11, 7, 9, 7),
+            CornerRadius = new CornerRadius(8)
+        };
+        ungrouped.AllowDrop = true;
+        ungrouped.DragOver += (_, e) => { e.AcceptedOperation = DataPackageOperation.Move; e.Handled = true; };
+        ungrouped.Drop += async (_, e) => await DropTabIntoGroupAsync(e, "Ungrouped");
+        TabGroupsBar.Children.Add(ungrouped);
+    }
+
+    private async Task<TabEntry?> GetDraggedTabAsync(DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.Text)) return null;
+        var id = await e.DataView.GetTextAsync();
+        return _tabs.FirstOrDefault(t => t.Id.ToString() == id);
+    }
+
+    private async Task DropTabOnTabAsync(DragEventArgs e, TabEntry target)
+    {
+        var source = await GetDraggedTabAsync(e);
+        if (source is null || source == target) return;
+
+        string group;
+        if (target.Group != "Ungrouped")
+            group = target.Group;
+        else if (source.Group != "Ungrouped")
+            group = source.Group;
+        else
+        {
+            var number = 1;
+            while (_groups.Contains("Group " + number)) number++;
+            group = "Group " + number;
+            _groups.Add(group);
+        }
+
+        AssignGroup(source, group);
+        AssignGroup(target, group);
+        SelectTab(source);
+        StatusText.Text = $"Created or updated {group}. Tabs are now grouped together.";
+    }
+
+    private async Task DropTabIntoGroupAsync(DragEventArgs e, string group)
+    {
+        var source = await GetDraggedTabAsync(e);
+        if (source is null) return;
+        AssignGroup(source, group);
+        SelectTab(source);
+        StatusText.Text = group == "Ungrouped" ? "Tab removed from its group" : $"Tab added to {group}";
     }
 
     private Grid ShowStartPage(Grid host)
@@ -770,6 +851,7 @@ public sealed partial class MainWindow : Window
 
     private sealed class TabEntry(Button tab, WebView2 web, Grid host)
     {
+        public Guid Id { get; } = Guid.NewGuid();
         public Button Tab { get; } = tab;
         public FrameworkElement Visual { get; set; } = tab;
         public WebView2 Web { get; } = web;
