@@ -11,7 +11,7 @@ public sealed class MainForm : Form
     private readonly string _root;
     private readonly string _runtime;
     private readonly WebView2 _shell = new() { Dock = DockStyle.Fill };
-    private readonly Panel _shellPanel = new() { Dock = DockStyle.Top, Height = 151 };
+    private readonly Panel _shellPanel = new() { Dock = DockStyle.Top, Height = 67 };
     private readonly Panel _browserPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(8,13,22) };
     private readonly List<TabEntry> _tabs = new();
     private readonly List<string> _groups = new() { "Ungrouped" };
