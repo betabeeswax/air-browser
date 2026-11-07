@@ -3,6 +3,8 @@ using Microsoft.Web.WebView2.WinForms;
 using System.Text.Json;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace AIRBrowser;
 
@@ -119,6 +121,10 @@ public sealed class MainForm : Form
                 case "forward": if(_active?.View.CoreWebView2?.CanGoForward==true)_active.View.CoreWebView2.GoForward();break;
                 case "reload": _active?.View.CoreWebView2?.Reload();break;
                 case "bookmark": SaveBookmark();break;
+                case "exportBookmarks": ExportBookmarks();break;
+                case "importBookmarks": ImportBookmarks();break;
+                case "importPasswords": ImportPasswords();break;
+                case "exportPasswords": ExportPasswords();break;
                 case "newGroup": CreateGroup(Get("name"));break;
                 case "groupTabs": GroupTabs(Get("source"),Get("target"));break;
                 case "detachTab": { var tab = _tabs.FirstOrDefault(x => x.Id == Get("id")); var url = tab?.View.CoreWebView2?.Source; if (tab is not null && !string.IsNullOrWhiteSpace(url)) { var window = new MainForm(url, _profile); window.Show(); Close(tab.Id); } break; }
@@ -178,6 +184,71 @@ public sealed class MainForm : Form
     private void MoveToGroup(string id,string group){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;if(group!="Ungrouped"&&!_groups.Contains(group))_groups.Add(group);t.Group=group;PushState();}
     private void SelectGroup(string group){var t=_tabs.FirstOrDefault(x=>x.Group==group);if(t is not null)Select(t);}
     private void SaveBookmark(){if(_active?.View.CoreWebView2?.Source is not string url)return;var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();if(!list.Contains(url))list.Add(url);File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus("Bookmark saved");}
+
+    private string PasswordVaultFile => Path.Combine(ProfileFolder, "passwords.dpapi");
+    private void ExportBookmarks()
+    {
+        try {
+            var file=Path.Combine(ProfileFolder,"bookmarks.json");
+            var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();
+            using var dialog=new SaveFileDialog{Title="Export AIR bookmarks",Filter="HTML bookmarks (*.html)|*.html",FileName="AIR-Bookmarks.html"};
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+            var html="<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n<TITLE>AIR Bookmarks</TITLE><H1>Bookmarks</H1><DL><p>\n";
+            foreach(var url in list.Distinct())if(Uri.TryCreate(url,UriKind.Absolute,out var u)&&(u.Scheme=="http"||u.Scheme=="https"))html+="<DT><A HREF=\""+System.Net.WebUtility.HtmlEncode(url)+"\">"+System.Net.WebUtility.HtmlEncode(u.Host)+"</A>\n";
+            File.WriteAllText(dialog.FileName,html+"</DL>\n",Encoding.UTF8);SetStatus("Bookmarks exported");
+        } catch(Exception ex){SetStatus("Bookmark export failed: "+ex.Message);}
+    }
+    private void ImportBookmarks()
+    {
+        try {
+            using var dialog=new OpenFileDialog{Title="Import bookmarks",Filter="Bookmark files (*.html;*.json)|*.html;*.json|All files (*.*)|*.*"};
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+            var content=File.ReadAllText(dialog.FileName);var imported=new List<string>();
+            if(dialog.FileName.EndsWith(".json",StringComparison.OrdinalIgnoreCase)){
+                using var doc=JsonDocument.Parse(content);var stack=new Stack<JsonElement>();stack.Push(doc.RootElement);
+                while(stack.Count>0){var el=stack.Pop();if(el.ValueKind==JsonValueKind.Object){if(el.TryGetProperty("url",out var u)&&u.ValueKind==JsonValueKind.String)imported.Add(u.GetString()!);foreach(var p in el.EnumerateObject())if(p.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)stack.Push(p.Value);}else if(el.ValueKind==JsonValueKind.Array)foreach(var x in el.EnumerateArray())stack.Push(x);}
+            } else foreach(System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(content,"HREF\\s*=\\s*[\"']([^\"']+)[\"']","IgnoreCase"))imported.Add(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value));
+            var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var before=list.Count;
+            foreach(var u in imported)if(Uri.TryCreate(u,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")&&!list.Contains(u,StringComparer.OrdinalIgnoreCase))list.Add(u);
+            File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus($"Imported {list.Count-before} bookmarks");
+        } catch(Exception ex){SetStatus("Bookmark import failed: "+ex.Message);}
+    }
+    private static List<string> ParseCsvLine(string line)
+    {
+        var values=new List<string>();var value=new StringBuilder();bool quoted=false;
+        for(int i=0;i<line.Length;i++){char c=line[i];if(c=='"'&&quoted&&i+1<line.Length&&line[i+1]=='"'){value.Append('"');i++;}else if(c=='"')quoted=!quoted;else if(c==','&&!quoted){values.Add(value.ToString());value.Clear();}else value.Append(c);}values.Add(value.ToString());return values;
+    }
+    private void ImportPasswords()
+    {
+        try {
+            using var dialog=new OpenFileDialog{Title="Import passwords from a browser CSV export",Filter="CSV files (*.csv)|*.csv"};
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+            var lines=File.ReadAllLines(dialog.FileName);if(lines.Length<2){SetStatus("No password records found");return;}
+            var headers=ParseCsvLine(lines[0]).Select((v,i)=>(key:v.Trim().ToLowerInvariant(),index:i)).ToDictionary(x=>x.key,x=>x.index);
+            int Find(params string[] keys){foreach(var k in keys)if(headers.TryGetValue(k,out var i))return i;return -1;}
+            int urlI=Find("url","origin","login_uri"),userI=Find("username","user name"),passI=Find("password"),nameI=Find("name","title");
+            if(urlI<0||userI<0||passI<0){SetStatus("CSV must contain URL, username and password columns");return;}
+            var records=new List<Dictionary<string,string>>();
+            foreach(var line in lines.Skip(1)){if(string.IsNullOrWhiteSpace(line))continue;var cols=ParseCsvLine(line);string Get(int i)=>i>=0&&i<cols.Count?cols[i]:"";var url=Get(urlI);var pass=Get(passI);if(!Uri.TryCreate(url,UriKind.Absolute,out var u)||(u.Scheme!="http"&&u.Scheme!="https")||pass.Length==0)continue;records.Add(new(){["url"]=url,["username"]=Get(userI),["password"]=pass,["name"]=Get(nameI)});}
+            Directory.CreateDirectory(ProfileFolder);var existing=new List<Dictionary<string,string>>();
+            if(File.Exists(PasswordVaultFile)){var cipher=File.ReadAllBytes(PasswordVaultFile);var plain=ProtectedData.Unprotect(cipher,null,DataProtectionScope.CurrentUser);existing=JsonSerializer.Deserialize<List<Dictionary<string,string>>>(plain)??new();}
+            foreach(var r in records){existing.RemoveAll(x=>x.GetValueOrDefault("url")==r["url"]&&x.GetValueOrDefault("username")==r["username"]);existing.Add(r);}
+            var encrypted=ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(existing),null,DataProtectionScope.CurrentUser);File.WriteAllBytes(PasswordVaultFile,encrypted);
+            SetStatus($"Imported {records.Count} passwords into this Windows account's encrypted vault");
+        } catch(Exception ex){SetStatus("Password import failed: "+ex.Message);}
+    }
+    private void ExportPasswords()
+    {
+        try {
+            if(!File.Exists(PasswordVaultFile)){SetStatus("No imported passwords to export");return;}
+            if(MessageBox.Show(this,"This export contains passwords in readable CSV text. Keep it private and delete it after importing.","Export passwords",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;
+            using var dialog=new SaveFileDialog{Title="Export passwords",Filter="CSV files (*.csv)|*.csv",FileName="AIR-Passwords.csv"};if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+            var plain=ProtectedData.Unprotect(File.ReadAllBytes(PasswordVaultFile),null,DataProtectionScope.CurrentUser);var records=JsonSerializer.Deserialize<List<Dictionary<string,string>>>(plain)??new();
+            string Q(string? x)=>"\""+(x??"").Replace("\"","\"\"")+"\"";
+            var csv="name,url,username,password\n"+string.Join("\n",records.Select(x=>string.Join(",",Q(x.GetValueOrDefault("name")),Q(x.GetValueOrDefault("url")),Q(x.GetValueOrDefault("username")),Q(x.GetValueOrDefault("password")))));
+            File.WriteAllText(dialog.FileName,csv,Encoding.UTF8);SetStatus("Password CSV exported — keep it secure");
+        } catch(Exception ex){SetStatus("Password export failed: "+ex.Message);}
+    }
     private void SaveProfiles(){try{File.WriteAllText(ProfilesFile,JsonSerializer.Serialize(_profiles));}catch{}}
     private void CreateProfile(string name){name=name.Trim();if(name.Length==0||name.Length>32||name.Any(char.IsControl)){SetStatus("Choose a profile name up to 32 characters");return;}if(_profiles.Contains(name,StringComparer.OrdinalIgnoreCase)){SetStatus("That profile already exists");return;}_profiles.Add(name);SaveProfiles();SwitchProfile(name);SetStatus("Created profile: "+name);}
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
