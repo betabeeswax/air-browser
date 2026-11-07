@@ -47,7 +47,7 @@
         </ScrollViewer>
 
         <!-- Tabs -->
-        <ContentControl x:Name="BrowserTabsHost" Grid.Row="2" Height="42"/>
+        <ScrollViewer Grid.Row="2" Height="42" Background="#0D1726" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"><StackPanel x:Name="BrowserTabsPanel" Orientation="Horizontal" Spacing="4" Padding="6,3"/></ScrollViewer>
 
         <!-- Main content area -->
         <Grid Grid.Row="3" ColumnSpacing="0">
