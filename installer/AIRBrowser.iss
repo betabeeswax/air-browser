@@ -4,6 +4,7 @@ AppId={{A1B2C3D4-E5F6-47A8-9B10-112233445566}
 AppName=AIR Browser
 AppVersion={#AppVersion}
 AppPublisher=AIR
+SetupIconFile=..\\assets\\air-browser.ico
 DefaultDirName={localappdata}\Programs\AIR Browser
 DefaultGroupName=AIR Browser
 DisableProgramGroupPage=yes
