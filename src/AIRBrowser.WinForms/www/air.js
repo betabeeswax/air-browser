@@ -54,6 +54,7 @@ function setAccountMode(mode){
 }
 function showAccountMessage(message,isError=false){const el=$("accountMessage");el.textContent=message;el.style.color=isError?"#ff9b9b":""}
 function sessionKey(){return "airAuthSession:"+encodeURIComponent(window.currentProfile||"Personal")}
+if(!localStorage.getItem("airAuthSession:Personal")&&localStorage.getItem("airAuthSession"))localStorage.setItem("airAuthSession:Personal",localStorage.getItem("airAuthSession"));
 function storedAirSession(){try{return JSON.parse(localStorage.getItem(sessionKey())||"null")}catch{return null}}
 function updateAccountView(){
  const session=storedAirSession(),signed=!!session?.access_token;
@@ -137,7 +138,7 @@ $("linkAccount").onclick=()=>{updateAccountView();setAccountMode("signin");showP
 updateAccountView();setAccountMode("signin");
 
 $("clearBrowsing").onclick=()=>{if(confirm("Clear browsing history and saved cookies for this profile?"))send("clearData")};\n$("managePasswords").onclick=()=>{hidePanels();send("managePasswords")};\n$("winMin").onclick=()=>send("windowMinimize");$("winMax").onclick=()=>send("windowMaximize");$("winClose").onclick=()=>send("windowClose");
-$("winMax").ondblclick=()=>send("windowMaximize");$("winMin").ondblclick=e=>e.stopPropagation();$("winClose").ondblclick=e=>e.stopPropagation();document.querySelector(".brand")?.addEventListener("mousedown",()=>send("dragWindow"));
+document.querySelector(".brand")?.addEventListener("mousedown",()=>send("dragWindow"));
 ["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
 window.chrome?.webview?.addEventListener("message",async e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles();updateAccountView()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value);else if(m.type==="authSession"){localStorage.setItem(sessionKey(),JSON.stringify(m.data));updateAccountView();showAccountMessage("Signed in to AIR Account. AIR Sync is now available.");toast("Signed in to AIR Account")}else if(m.type==="syncData"){await backupSyncData(m.data)}});
 applySettings();send("ready");
