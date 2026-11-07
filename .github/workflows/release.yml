@@ -40,7 +40,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Restore
-        run: msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
+        run: dotnet restore src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj
 
       - name: Publish native Windows app
         shell: pwsh
@@ -133,7 +133,7 @@ jobs:
           tag_name: air-browser-native-build-${{ github.run_number }}
           name: AIR Browser Native build ${{ github.run_number }}
           body: |
-            Native Windows 11 AIR Browser build.
+            Rebuilt Windows 11 AIR Browser using Windows Forms and the Chromium-based Microsoft WebView2 engine.
             - Installer: AIR-Browser-Setup.exe (updates preserve installed browser data)
             - Portable: AIR-Browser-Portable.zip (stores browser data beside the app)
             - Bundled WebView2 Fixed Version runtime: 156.0.4314.56 x64 (no separate Evergreen runtime required)
