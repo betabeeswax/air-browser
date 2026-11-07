@@ -198,8 +198,31 @@ public sealed class MainForm : Form
             view.CoreWebView2.Settings.IsStatusBarEnabled=false;
             view.CoreWebView2.DocumentTitleChanged+=(_,_)=>{tab.Title=string.IsNullOrWhiteSpace(view.CoreWebView2.DocumentTitle)?"New tab":view.CoreWebView2.DocumentTitle;PushState();};
             view.CoreWebView2.NavigationStarting+=(_,a)=>{if(_active==tab){Send("address",new{value=a.Uri});SetStatus("Loading…");}};
-            view.CoreWebView2.NavigationCompleted+=(_,a)=>{if(a.IsSuccess)RecordHistory(view.CoreWebView2.Source);SetStatus(a.IsSuccess?"Ready":"Page could not be loaded");PushState();};
+            view.CoreWebView2.NavigationCompleted+=(_,a)=>{if(a.IsSuccess){RecordHistory(view.CoreWebView2.Source);_ = FillSavedPasswordAsync(view);}SetStatus(a.IsSuccess?"Ready":"Page could not be loaded");PushState();};
             view.CoreWebView2.NewWindowRequested+=async(_,a)=>{a.Handled=true;await AddTabAsync(a.Uri);};
+            view.CoreWebView2.WebMessageReceived += (_, message) =>
+            {
+                try
+                {
+                    using var data = JsonDocument.Parse(message.WebMessageAsJson);
+                    var root = data.RootElement;
+                    if (root.TryGetProperty("type", out var type) && type.GetString() == "airSavePassword")
+                    {
+                        var url = root.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+                        var username = root.TryGetProperty("username", out var n) ? n.GetString() ?? "" : "";
+                        var password = root.TryGetProperty("password", out var p) ? p.GetString() ?? "" : "";
+                        var title = root.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                        if (Uri.TryCreate(url, UriKind.Absolute, out var origin) && origin.Scheme == "https" && password.Length > 0 &&
+                            MessageBox.Show(this, "Save this password for " + origin.Host + " in the " + _profile + " profile?", "Save password", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        {
+                            SavePasswordRecord(origin.GetLeftPart(UriPartial.Authority), username, password, title);
+                            SetStatus("Password saved for " + origin.Host);
+                        }
+                    }
+                }
+                catch { }
+            };
+            await view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"(()=>{document.addEventListener('submit',e=>{const f=e.target;if(!(f instanceof HTMLFormElement)||location.protocol!=='https:')return;const p=f.querySelector('input[type=password]');if(!p||!p.value)return;const u=f.querySelector('input[autocomplete=username],input[type=email],input[name*=user i],input[type=text]');chrome.webview.postMessage({type:'airSavePassword',url:location.origin,username:u?.value||'',password:p.value,title:document.title});},true)})();");
             view.CoreWebView2.DownloadStarting+=(_,a)=>{var folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads");Directory.CreateDirectory(folder);var name=Path.GetFileName(a.ResultFilePath);if(!string.IsNullOrWhiteSpace(name))a.ResultFilePath=Path.Combine(folder,name);SetStatus("Downloading "+name);};
             if(!string.IsNullOrWhiteSpace(url))NavigateEntry(tab,url);else view.CoreWebView2.NavigateToString(StartHtml);
         }catch(Exception ex){SetStatus("Browser engine error: "+ex.Message);}
