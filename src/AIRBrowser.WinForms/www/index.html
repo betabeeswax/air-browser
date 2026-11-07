@@ -2,15 +2,40 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="air.css"><title>AIR Browser</title></head>
 <body>
 <header class="top">
- <div class="brand"><img src="../assets/air-browser.png" onerror="this.style.display='none'"><span class="mark">A</span><b>AIR</b></div>
+ <div class="brand"><span class="brand-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 45 42H34L24 23 14 42H3L24 4Z" fill="currentColor"/><path d="m24 24 10 18H14l10-18Z" fill="#8fc5ff"/></svg></span><b>AIR</b></div>
  <div class="tabs" id="tabs"></div><button class="add" id="newTab" title="New tab">+</button>
 </header>
 <nav class="toolbar">
  <button id="back" title="Back">‹</button><button id="forward" title="Forward">›</button><button id="reload" title="Reload">↻</button>
- <select id="engine"><option>Bing</option><option>Google</option><option>DuckDuckGo</option></select>
- <input id="address" placeholder="Search or enter a website address" autocomplete="off"><button class="go" id="go">Go</button>
- <button id="bookmark" title="Bookmark">☆</button><select id="profile"><option>Personal</option><option>Work</option></select><button id="menu">•••</button>
+ <input id="address" placeholder="Search Bing or enter an address" autocomplete="off"><button class="go" id="go">Go</button>
+ <button id="bookmark" title="Save bookmark">☆</button><button id="profile" class="profile-button" title="Profiles">● Personal</button><button id="menu" class="menu-button" title="Browser menu">•••</button>
 </nav>
-<section class="groupbar"><span>GROUPS</span><div id="groups"></div><button id="newGroup">+ New group</button></section>
+<section class="groupbar"><div id="groups"></div><button id="newGroup" title="Create a tab group">＋</button></section>
 <div class="hint" id="hint">Welcome to AIR Browser</div>
+<div class="popover hidden" id="menuPanel" role="menu">
+ <div class="menu-heading">AIR Browser</div>
+ <button data-action="newTab">＋ <span>New tab</span><kbd>Ctrl+T</kbd></button>
+ <button data-action="bookmarks">☆ <span>Bookmarks</span></button>
+ <button data-action="history">◷ <span>History</span></button>
+ <button data-action="downloads">↓ <span>Downloads</span></button>
+ <div class="menu-separator"></div>
+ <button data-action="settings">⚙ <span>Settings</span></button>
+ <button data-action="profiles">◉ <span>Manage profiles</span></button>
+ <button data-action="update">↻ <span>Check for updates</span></button>
+ <button data-action="about">ⓘ <span>About AIR Browser</span></button>
+</div>
+<div class="popover hidden" id="settingsPanel">
+ <div class="panel-head"><div><small>AIR BROWSER</small><h2>Settings</h2></div><button class="icon-button" data-close="settingsPanel">×</button></div>
+ <div class="settings-layout"><aside class="settings-nav"><button class="selected" data-section="general">General</button><button data-section="appearance">Appearance</button><button data-section="search">Search</button><button data-section="privacy">Privacy</button><button data-section="startup">On startup</button><button data-section="about">About</button></aside>
+ <main class="settings-content">
+ <section data-page="general"><h3>General</h3><p>Make AIR Browser feel like yours.</p><label class="setting-row"><span><b>Show bookmarks button</b><small>Keep quick access to saved pages in the toolbar.</small></span><input type="checkbox" id="showBookmarks" checked></label><label class="setting-row"><span><b>Ask before closing multiple tabs</b><small>Help prevent accidentally closing your session.</small></span><input type="checkbox" id="confirmClose" checked></label><label class="setting-row"><span><b>Continue where you left off</b><small>Restore your tabs next time you open AIR.</small></span><input type="checkbox" id="restoreTabs"></label></section>
+ <section data-page="appearance" class="hidden"><h3>Appearance</h3><p>Choose how AIR Browser looks.</p><label class="setting-row"><span><b>Colour theme</b><small>Pick your browser appearance.</small></span><select id="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System default</option></select></label><label class="setting-row"><span><b>Compact tabs</b><small>Fit more tabs across the top.</small></span><input type="checkbox" id="compactTabs"></label><label class="setting-row"><span><b>Show tab group strip</b><small>Keep your groups visible below the toolbar.</small></span><input type="checkbox" id="showGroups" checked></label></section>
+ <section data-page="search" class="hidden"><h3>Search</h3><p>Choose your default search engine.</p><label class="setting-row"><span><b>Search engine</b><small>Used when you type a search instead of a web address.</small></span><select id="defaultEngine"><option>Bing</option><option>Google</option><option>DuckDuckGo</option></select></label><label class="setting-row"><span><b>Search suggestions</b><small>Show suggestions while typing (coming soon).</small></span><input type="checkbox" id="suggestions" checked></label></section>
+ <section data-page="privacy" class="hidden"><h3>Privacy & security</h3><p>Control a few browser privacy options.</p><label class="setting-row"><span><b>Block pop-up windows</b><small>Reduce unwanted pop-ups.</small></span><input type="checkbox" id="blockPopups" checked></label><label class="setting-row"><span><b>Send Do Not Track requests</b><small>Ask websites not to track your browsing.</small></span><input type="checkbox" id="doNotTrack"></label><button class="secondary" id="clearBrowsing">Clear browsing data</button></section>
+ <section data-page="startup" class="hidden"><h3>On startup</h3><p>Choose what opens when AIR Browser starts.</p><label class="setting-row"><span><b>Open the new tab page</b><small>Start with AIR's home page.</small></span><input type="radio" name="startup" value="home" checked></label><label class="setting-row"><span><b>Open a specific page</b><small>Custom start page support will be added soon.</small></span><input type="radio" name="startup" value="custom"></label></section>
+ <section data-page="about" class="hidden"><h3>About AIR Browser</h3><p>Fast, focused browsing with a space that's yours.</p><div class="about-card"><span class="about-logo">A</span><div><b>AIR Browser</b><small>Version 0.2 · Windows</small></div></div><button class="secondary" data-action="update">Check for updates</button></section>
+ </main></div>
+</div>
+<div class="popover hidden" id="profilesPanel"><div class="panel-head"><div><small>YOUR BROWSER SPACES</small><h2>Profiles</h2></div><button class="icon-button" data-close="profilesPanel">×</button></div><div id="profileList" class="profile-list"></div><div class="profile-create"><input id="newProfileName" placeholder="Name a new profile"><button class="go" id="createProfile">Create profile</button></div><p class="muted">Profiles keep bookmarks and browser data separate.</p></div>
+<div class="toast" id="toast"></div>
 <script src="air.js"></script></body></html>
