@@ -1,6 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using WinRT.Interop;
 using Microsoft.Web.WebView2.Core;
 using System.Collections.ObjectModel;
 using System.Collections.Concurrent;
@@ -60,6 +63,7 @@ public sealed partial class MainWindow : Window
         try
         {
             InitializeComponent();
+            ApplyWindowIcon();
         }
         finally
         {
@@ -92,6 +96,29 @@ public sealed partial class MainWindow : Window
         else if (_portableMode)
             StatusText.Text = "Portable mode • data is stored beside AIR Browser.";
         _ = AddTabAsync();
+    }
+
+    private void ApplyWindowIcon()
+    {
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "air-browser.ico");
+            if (!File.Exists(iconPath))
+                iconPath = Path.Combine(AppContext.BaseDirectory, "air-browser.ico");
+            if (!File.Exists(iconPath))
+            {
+                App.WriteDiagnostic("AIR Browser icon file was not found", null);
+                return;
+            }
+
+            var hwnd = WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow.GetFromWindowId(windowId).SetIcon(iconPath);
+        }
+        catch (Exception ex)
+        {
+            App.WriteDiagnostic("Could not apply AIR Browser window icon", ex);
+        }
     }
 
     private void AddKeyboardShortcut(VirtualKey key, TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler)
