@@ -3,7 +3,7 @@
 <body>
 <header class="top">
  <div class="brand"><span class="brand-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 45 42H34L24 23 14 42H3L24 4Z" fill="currentColor"/><path d="m24 24 10 18H14l10-18Z" fill="#8fc5ff"/></svg></span><b>AIR</b></div>
- <div class="tabs" id="tabs"></div><button class="add" id="newTab" title="New tab">+</button>
+ <div class="tab-strip"><div class="tabs" id="tabs"></div><button class="add" id="newTab" title="New tab" aria-label="Open new tab">+</button></div>
 </header>
 <nav class="toolbar">
  <button id="back" title="Back">‹</button><button id="forward" title="Forward">›</button><button id="reload" title="Reload">↻</button>
@@ -14,6 +14,8 @@
 <div class="popover hidden" id="menuPanel" role="menu">
  <div class="menu-heading">AIR Browser</div>
  <button data-action="newTab">＋ <span>New tab</span><kbd>Ctrl+T</kbd></button>
+ <button data-action="duplicateTab">▣ <span>Duplicate current tab</span><kbd>Ctrl+Shift+K</kbd></button>
+ <button data-action="copyLink">↗ <span>Copy page link</span></button>
  <button data-action="bookmarks">☆ <span>Bookmarks</span></button>
  <button data-action="history">◷ <span>History</span></button>
  <button data-action="downloads">↓ <span>Downloads</span></button>
