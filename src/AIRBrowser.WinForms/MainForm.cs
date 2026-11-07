@@ -99,6 +99,7 @@ public sealed class MainForm : Form
                 case "showHistory": ShowHistory();break;
                 case "downloads": Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads")){UseShellExecute=true});break;
                 case "clearData": if(_active?.View.CoreWebView2 is not null){await _active.View.CoreWebView2.Profile.ClearBrowsingDataAsync();SetStatus("Browsing data cleared");}break;
+                case "update": await CheckForUpdatesAsync(true);break;
             }
         }catch(Exception ex){SetStatus("Action failed: "+ex.Message);}
     }
@@ -161,9 +162,9 @@ public sealed class MainForm : Form
         });
     }
 
-    private async Task CheckForUpdatesAsync()
+    private async Task CheckForUpdatesAsync(bool manual = false)
     {
-        if (_updateCheckRunning || IsDisposed) return;
+        if (_updateCheckRunning || IsDisposed) { if (manual) SetStatus("An update check is already running…"); return; }
         _updateCheckRunning = true;
         try
         {
@@ -177,11 +178,11 @@ public sealed class MainForm : Form
             var match = System.Text.RegularExpressions.Regex.Match(tag, @"(\d+)$");
             if (!match.Success || !int.TryParse(match.Groups[1].Value, out var latestBuild)) return;
             var currentBuild = Version.TryParse(Application.ProductVersion, out var installedVersion) ? installedVersion.Build : 0;
-            if (latestBuild <= currentBuild) return;
+            if (latestBuild <= currentBuild) { if (manual) { SetStatus("AIR Browser is up to date"); MessageBox.Show(this, "You already have the latest version of AIR Browser.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information); } return; }
 
             var asset = doc.RootElement.GetProperty("assets").EnumerateArray()
                 .FirstOrDefault(x => x.GetProperty("name").GetString() == "AIR-Browser-Setup.exe");
-            if (asset.ValueKind == JsonValueKind.Undefined) return;
+            if (asset.ValueKind == JsonValueKind.Undefined) { if (manual) MessageBox.Show(this, "A new version was found, but its installer is not available yet.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             var url = asset.GetProperty("browser_download_url").GetString();
             if (string.IsNullOrWhiteSpace(url)) return;
 
@@ -220,8 +221,9 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("AIR Browser automatic update check failed: " + ex);
-            SetStatus("Automatic update check will retry later");
+            Debug.WriteLine("AIR Browser update check failed: " + ex);
+            SetStatus("Update check failed");
+            if (manual) MessageBox.Show(this, "AIR Browser could not check for updates. Please check your internet connection and try again.\n\n" + ex.Message, "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally { _updateCheckRunning = false; }
     }
@@ -233,6 +235,7 @@ public sealed class MainForm : Form
         m.Items.Add("Bookmarks", null, (_, _) => ShowBookmarks());
         m.Items.Add("History", null, (_, _) => ShowHistory());
         m.Items.Add("Downloads", null, (_, _) => Process.Start(new ProcessStartInfo("explorer.exe", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")) { UseShellExecute = true }));
+        m.Items.Add("Check for updates", null, async (_, _) => await CheckForUpdatesAsync(true));
         m.Show(Cursor.Position);
     }
     private void ShowBookmarks(){var file=Path.Combine(ProfileFolder,"bookmarks.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("Bookmarks",list);if(selected is not null)Navigate(selected);}
