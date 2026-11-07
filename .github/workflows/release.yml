@@ -40,14 +40,14 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Restore
-        run: msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
+        run: msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
 
       - name: Publish native Windows app
         shell: pwsh
         run: |
           $publishDir = (Join-Path $PWD "publish") + [IO.Path]::DirectorySeparatorChar
           New-Item -ItemType Directory -Force $publishDir | Out-Null
-          msbuild src/AIRBrowser.WinUI/AIRBrowser.WinUI.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
+          msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
 
       - name: Download and verify fixed WebView2 runtime
         shell: pwsh
@@ -133,7 +133,7 @@ jobs:
           tag_name: air-browser-native-build-${{ github.run_number }}
           name: AIR Browser Native build ${{ github.run_number }}
           body: |
-            AIR Browser with a custom WinUI interface and the Chromium-based Microsoft WebView2 engine.
+            AIR Browser with an HTML, CSS and JavaScript interface hosted by a lightweight WinForms shell and the Chromium-based Microsoft WebView2 engine.
             - Installer: AIR-Browser-Setup.exe (updates preserve installed browser data)
             - Portable: AIR-Browser-Portable.zip (stores browser data beside the app)
             - Bundled WebView2 Fixed Version runtime: 156.0.4314.56 x64 (no separate Evergreen runtime required)
