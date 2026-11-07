@@ -2,24 +2,20 @@ const $=id=>document.getElementById(id);let tabs=[],active=null,profiles=["Perso
 function send(type,extra={}){window.chrome?.webview?.postMessage({type,...extra})}
 function toast(s){const t=$("toast");t.textContent=s;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),2600)}
 function render(){
- const host=$("tabs"),heads=$("groupHeaders");host.replaceChildren();heads.replaceChildren();
- const groups=[...new Set(tabs.map(t=>t.group).filter(g=>g&&g!=="Ungrouped"))];
- for(const group of groups){const count=tabs.filter(t=>t.group===group).length;if(count<2)continue;
-  const h=document.createElement("button");h.className="group-heading"+(collapsedGroups.has(group)?" collapsed":"");h.title=collapsedGroups.has(group)?"Expand "+group:"Collapse "+group;
-  h.innerHTML='<span class="group-line"></span><span class="group-name"></span><span class="group-count"></span><span class="group-chevron">⌄</span>';
-  h.querySelector(".group-name").textContent=group;h.querySelector(".group-count").textContent=count;
-  h.onclick=()=>{collapsedGroups.has(group)?collapsedGroups.delete(group):collapsedGroups.add(group);render()};
-  heads.append(h);
- }
- for(const t of tabs){const b=document.createElement("div");const group=t.group&&t.group!=="Ungrouped"?t.group:null;
-  b.className="tab"+(t.id===active?" active":"")+(group&&collapsedGroups.has(group)?" group-collapsed":"");
+ const host=$("tabs");host.replaceChildren();
+ for(const t of tabs){
+  const group=t.group&&t.group!=="Ungrouped"?t.group:null;
+  const first=group&&tabs.find(x=>x.group===group)?.id===t.id;
+  const collapsed=group&&collapsedGroups.has(group);
+  const b=document.createElement("div");
+  b.className="tab"+(t.id===active?" active":"")+(group?" in-group":"")+(collapsed&&!first?" group-collapsed":"");
   b.draggable=true;b.dataset.id=t.id;b.innerHTML='<span class="name"></span><button class="close" title="Close tab">×</button>';
-  b.querySelector(".name").textContent=t.title;
-  if(group){const line=document.createElement("span");line.className="tab-group-line";b.prepend(line)}
-  b.addEventListener("click",e=>{if(!e.target.closest(".close"))send("select",{id:t.id})});
+  if(first){const label=document.createElement("button");label.className="tab-group-label";label.textContent=(collapsed?"▸ ":"▾ ")+group;label.title=collapsed?"Expand group":"Collapse group";label.draggable=false;label.onclick=e=>{e.stopPropagation();collapsedGroups.has(group)?collapsedGroups.delete(group):collapsedGroups.add(group);render()};b.prepend(label)}
+  b.querySelector(".name").textContent=collapsed&&first?"":t.title;
+  b.addEventListener("click",e=>{if(!e.target.closest(".close")&&!e.target.closest(".tab-group-label"))send("select",{id:t.id})});
   b.querySelector(".close").addEventListener("click",e=>{e.stopPropagation();send("close",{id:t.id})});
   b.addEventListener("dragstart",e=>{dragId=t.id;e.dataTransfer.setData("text/plain",t.id);e.dataTransfer.effectAllowed="move";requestAnimationFrame(()=>b.classList.add("dragging"))});
-  b.addEventListener("dragend",e=>{b.classList.remove("dragging");if(dragId===t.id&&(e.clientX<0||e.clientY<0||e.clientX>innerWidth||e.clientY>innerHeight)){send("detachTab",{id:t.id})}dragId=null});
+  b.addEventListener("dragend",e=>{b.classList.remove("dragging");if(dragId===t.id&&(e.clientX<0||e.clientY<0||e.clientX>innerWidth||e.clientY>innerHeight))send("detachTab",{id:t.id});dragId=null});
   b.addEventListener("dragover",e=>{e.preventDefault();b.classList.add("dragover")});
   b.addEventListener("dragleave",()=>b.classList.remove("dragover"));
   b.addEventListener("drop",e=>{e.preventDefault();b.classList.remove("dragover");const source=e.dataTransfer.getData("text/plain");if(source&&source!==t.id)send("groupTabs",{source,target:t.id})});
