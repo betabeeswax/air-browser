@@ -207,7 +207,7 @@ public sealed class MainForm : Form
             if(dialog.FileName.EndsWith(".json",StringComparison.OrdinalIgnoreCase)){
                 using var doc=JsonDocument.Parse(content);var stack=new Stack<JsonElement>();stack.Push(doc.RootElement);
                 while(stack.Count>0){var el=stack.Pop();if(el.ValueKind==JsonValueKind.Object){if(el.TryGetProperty("url",out var u)&&u.ValueKind==JsonValueKind.String)imported.Add(u.GetString()!);foreach(var p in el.EnumerateObject())if(p.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)stack.Push(p.Value);}else if(el.ValueKind==JsonValueKind.Array)foreach(var x in el.EnumerateArray())stack.Push(x);}
-            } else foreach(System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(content,"HREF\\s*=\\s*[\"']([^\"']+)[\"']","IgnoreCase"))imported.Add(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value));
+            } else foreach(System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(content,"HREF\\s*=\\s*[\"']([^\"']+)[\"']",System.Text.RegularExpressions.RegexOptions.IgnoreCase))imported.Add(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value));
             var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var before=list.Count;
             foreach(var u in imported)if(Uri.TryCreate(u,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")&&!list.Contains(u,StringComparer.OrdinalIgnoreCase))list.Add(u);
             File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus($"Imported {list.Count-before} bookmarks");
