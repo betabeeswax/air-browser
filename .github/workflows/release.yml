@@ -47,7 +47,7 @@ jobs:
         run: |
           $publishDir = (Join-Path $PWD "publish") + [IO.Path]::DirectorySeparatorChar
           New-Item -ItemType Directory -Force $publishDir | Out-Null
-          msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:PublishDir=$publishDir"
+          msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:Version=$env:AIR_VERSION" "/p:PublishDir=$publishDir"
 
       - name: Download and verify fixed WebView2 runtime
         shell: pwsh
@@ -137,7 +137,7 @@ jobs:
             - Installer: AIR-Browser-Setup.exe (updates preserve installed browser data)
             - Portable: AIR-Browser-Portable.zip (stores browser data beside the app)
             - Bundled WebView2 Fixed Version runtime: 156.0.4314.56 x64 (no separate Evergreen runtime required)
-            Built from commit ${{ github.sha }}.
+            Built from commit ${{ github.sha }}. The app icon is bundled in the Windows executable and installer.
           files: |
             artifacts/AIR-Browser-Setup.exe
             artifacts/AIR-Browser-Portable.zip
