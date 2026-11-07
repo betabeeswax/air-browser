@@ -142,7 +142,6 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();break;
-                case "providerSignIn": await StartProviderSignInAsync(Get("provider"));break;
                 case "windowMinimize": WindowState=FormWindowState.Minimized;break;
                 case "windowMaximize": WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;break;
                 case "windowClose": Close();break;
@@ -286,62 +285,6 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private void MoveToGroup(string id,string group){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;if(group!="Ungrouped"&&!_groups.Contains(group))_groups.Add(group);t.Group=group;PushState();}
     private void SelectGroup(string group){var t=_tabs.FirstOrDefault(x=>x.Group==group);if(t is not null)Select(t);}
 
-    private async Task StartProviderSignInAsync(string providerName)
-    {
-        var provider = providerName.Equals("Microsoft", StringComparison.OrdinalIgnoreCase) ? "azure" : "google";
-        using var listener = new TcpListener(IPAddress.Loopback, 43827);
-        try
-        {
-            listener.Start();
-            var redirect = "http://localhost:43827/auth/callback/";
-            var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
-            var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
-            var authUrl = AIR_AUTH_URL + "/auth/v1/authorize?provider=" + provider +
-                "&redirect_to=" + Uri.EscapeDataString(redirect) +
-                "&code_challenge=" + Uri.EscapeDataString(challenge) +
-                "&code_challenge_method=s256" +
-                (provider == "azure" ? "&scopes=email" : "") + "&prompt=select_account";
-            SetStatus("Opening " + providerName + " sign-in…");
-            Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
-
-            using var client = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromMinutes(4));
-            using var stream = client.GetStream();
-            using var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, true);
-            var requestLine = await reader.ReadLineAsync();
-            string? line;
-            do { line = await reader.ReadLineAsync(); } while (!string.IsNullOrEmpty(line));
-            var rawTarget = requestLine?.Split(' ').ElementAtOrDefault(1) ?? "/";
-            var requestUri = new Uri(new Uri(redirect), rawTarget);
-            var query = System.Web.HttpUtility.ParseQueryString(requestUri.Query);
-            var code = query["code"];
-            var error = query["error_description"] ?? query["error"];
-            var page = string.IsNullOrWhiteSpace(code)
-                ? "<h2>Sign-in did not finish</h2><p>Return to AIR Browser and check the message there.</p>"
-                : "<h2>You're signed in!</h2><p>You can close this tab and return to AIR Browser.</p>";
-            var bytes = Encoding.UTF8.GetBytes("<!doctype html><meta charset='utf-8'><title>AIR Account</title><body style='font:18px Segoe UI;background:#101827;color:white;padding:48px'>" + page + "</body>");
-            var header = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bytes.Length + "\r\nConnection: close\r\n\r\n");
-            await stream.WriteAsync(header); await stream.WriteAsync(bytes); await stream.FlushAsync();
-
-            if (string.IsNullOrWhiteSpace(code))
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "The provider did not return a sign-in code. Check that it is enabled in Supabase." : error);
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            var body = JsonSerializer.Serialize(new { auth_code = code, code_verifier = verifier });
-            using var response = await http.PostAsync(AIR_AUTH_URL + "/auth/v1/token?grant_type=pkce",
-                new StringContent(body, Encoding.UTF8, "application/json"));
-            var json = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException("Supabase could not finish sign-in. Check provider Client ID/Secret and the localhost redirect URL. " + json);
-            using var sessionDoc = JsonDocument.Parse(json);
-            Send("authSession", sessionDoc.RootElement.Clone());
-            SetStatus("Signed in to AIR Account for " + _profile);
-        }
-        catch (TimeoutException) { SetStatus("Sign-in timed out. Try again."); Send("toast", new { value = "Sign-in timed out. Check the provider setup guide." }); }
-        catch (Exception ex) { SetStatus("AIR Account sign-in: " + ex.Message); Send("toast", new { value = "Sign-in failed: " + ex.Message }); }
-        finally { listener.Stop(); }
-    }
-
-    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+','-').Replace('/','_');
-
     private void ExportSyncData()
     {
         try
@@ -377,7 +320,6 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
 
     private void SaveBookmark(){if(_active?.View.CoreWebView2?.Source is not string url)return;var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();if(!list.Contains(url))list.Add(url);File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus("Bookmark saved");}
 
-    private const string AIR_AUTH_URL = "https://rkwpxzotvneoavrczkzo.supabase.co";
     private string PasswordVaultFile => Path.Combine(ProfileFolder, "passwords.dpapi");
     private void ExportBookmarks()
     {
