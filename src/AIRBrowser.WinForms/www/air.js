@@ -38,5 +38,6 @@ $("editProfilePhoto").onchange=e=>{const file=e.target.files?.[0];if(!file)retur
 $("removeProfilePhoto").onclick=()=>{window.pendingProfilePhoto="";toast("Profile picture will be removed")};
 $("saveProfileEdit").onclick=()=>{const p=window.editingProfile;if(!p)return;const meta=profileMeta();meta[p]={label:$("editProfileName").value.trim()||p,avatar:$("editProfileAvatar").value,avatarImage:window.pendingProfilePhoto||""};localStorage.setItem("airProfileMeta",JSON.stringify(meta));$("profileEditor").classList.add("hidden");renderProfiles();toast("Profile updated")};
 $("clearBrowsing").onclick=()=>{if(confirm("Clear browsing history and saved cookies for this profile?"))send("clearData")};
+["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
 window.chrome?.webview?.addEventListener("message",e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;renderProfiles()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value)});
 applySettings();send("ready");
