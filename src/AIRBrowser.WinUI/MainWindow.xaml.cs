@@ -31,9 +31,9 @@ public sealed partial class MainWindow : Window
     private bool _changingGroup;
     private bool _sidebarExpanded = true;
     private bool _verticalMode;
-    private TabView BrowserTabs { get; } = new();
-    private WebView2? ActiveWeb => (BrowserTabs.SelectedItem as TabViewItem)?.Tag as WebView2;
-    private TabEntry? ActiveEntry => _tabs.FirstOrDefault(t => t.Web == ActiveWeb);
+    private TabEntry? _activeEntry;
+    private WebView2? ActiveWeb => _activeEntry?.Web;
+    private TabEntry? ActiveEntry => _activeEntry;
     private string ProfileFolder => Path.Combine(_root, "Profiles", SafeName(_profile));
     private string PasswordFile => Path.Combine(ProfileFolder, "passwords.bin");
     private static string SafeName(string value) => string.Concat(value.Select(c => char.IsLetterOrDigit(c) || c == '-' ? c : '_'));
@@ -65,16 +65,6 @@ public sealed partial class MainWindow : Window
         {
             App.SetMainWindowXamlLoading(false);
         }
-
-        // Build TabView in code to keep its template and events out of startup XAML.
-        BrowserTabs.Height = 42;
-        BrowserTabs.IsAddTabButtonVisible = true;
-        BrowserTabs.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 13, 23, 38));
-        BrowserTabs.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 234, 243, 255));
-        BrowserTabs.AddTabButtonClick += BrowserTabs_AddTabButtonClick;
-        BrowserTabs.TabCloseRequested += BrowserTabs_TabCloseRequested;
-        BrowserTabs.SelectionChanged += BrowserTabs_SelectionChanged;
-        BrowserTabsHost.Content = BrowserTabs;
 
         // Register keyboard shortcuts in code instead of XAML. This avoids
         // WinUI XAML loader failures while keeping the same browser shortcuts.
@@ -162,16 +152,21 @@ public sealed partial class MainWindow : Window
 
     private async Task AddTabAsync(string? address = null)
     {
-        var tab = new TabViewItem { Header = "New tab" };
+        var tabButton = new Button { Content = "New tab", MinWidth = 110, Padding = new Thickness(10, 4, 10, 4), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 25, 39, 58)), Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) };
         var host = new Grid { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         var web = new WebView2();
         host.Children.Add(web);
-        tab.Content = new Grid { Height = 0, MinHeight = 0 };
-        tab.Tag = web;
-        var entry = new TabEntry(tab, web, host);
+        var entry = new TabEntry(tabButton, web, host);
+        tabButton.Click += (_, _) => SelectTab(entry);
+        var closeButton = new Button { Content = "×", Padding = new Thickness(6, 2, 6, 2), MinWidth = 28 };
+        closeButton.Click += (_, _) => CloseTab(entry);
+        var tabVisual = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        tabVisual.Children.Add(tabButton);
+        tabVisual.Children.Add(closeButton);
+        BrowserTabsPanel.Children.Add(tabVisual);
+        entry.Visual = tabVisual;
         _tabs.Add(entry);
-        BrowserTabs.TabItems.Add(tab);
-        BrowserTabs.SelectedItem = tab;
+        SelectTab(entry);
         ShowEntry(entry);
         RefreshVerticalTabs();
         try
@@ -241,7 +236,7 @@ public sealed partial class MainWindow : Window
             web.CoreWebView2.DocumentTitleChanged += (_, _) =>
             {
                 var title = string.IsNullOrWhiteSpace(web.CoreWebView2.DocumentTitle) ? "New tab" : web.CoreWebView2.DocumentTitle;
-                tab.Header = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
+                entry.Tab.Content = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
                 RefreshVerticalTabs();
             };
             web.CoreWebView2.NavigationStarting += (_, e) =>
@@ -260,7 +255,7 @@ public sealed partial class MainWindow : Window
                 UpdateNavigationButtons();
                 if (Uri.TryCreate(web.Source?.ToString(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
                 {
-                    SaveHistory(uri.ToString(), tab.Header?.ToString() ?? uri.Host);
+                    SaveHistory(uri.ToString(), entry.Tab.Content?.ToString() ?? uri.Host);
                     if (_savedTabGroups.TryGetValue(uri.ToString(), out var group) && _groups.Contains(group))
                     {
                         entry.Group = group;
@@ -332,7 +327,7 @@ public sealed partial class MainWindow : Window
     {
         var title = entry.Web.CoreWebView2?.DocumentTitle;
         if (string.IsNullOrWhiteSpace(title)) title = "New tab";
-        entry.Tab.Header = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
+        entry.Tab.Content = entry.Group == "Ungrouped" ? title : $"● {entry.Group}  ·  {title}";
         RefreshVerticalTabs();
         RefreshTabGroupsBar();
         SaveGroups();
@@ -357,7 +352,7 @@ public sealed partial class MainWindow : Window
             button.Click += (_, _) =>
             {
                 var first = _tabs.FirstOrDefault(t => t.Group == group);
-                if (first is not null) BrowserTabs.SelectedItem = first.Tab;
+                if (first is not null) SelectTab(first);
                 else if (group != "Ungrouped" && ActiveEntry is not null) AssignGroup(ActiveEntry, group);
                 RefreshTabGroupsBar();
             };
@@ -432,30 +427,37 @@ public sealed partial class MainWindow : Window
     }
 
     private void NewTab_Click(object sender, RoutedEventArgs e) => _ = AddTabAsync();
-    private void BrowserTabs_AddTabButtonClick(TabView sender, object args) => _ = AddTabAsync();
-    private void BrowserTabs_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+    private void SelectTab(TabEntry entry)
     {
-        var entry = _tabs.FirstOrDefault(t => t.Tab == args.Tab);
-        if (entry is not null)
-        {
-            _tabs.Remove(entry);
-            if (ContentHost.Children.Contains(entry.Host)) ContentHost.Children.Remove(entry.Host);
-        }
-        sender.TabItems.Remove(args.Tab);
-        if (sender.TabItems.Count == 0) _ = AddTabAsync();
+        _activeEntry = entry;
+        ShowEntry(entry);
+        foreach (var item in _tabs)
+            item.Tab.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                ReferenceEquals(item, entry)
+                    ? Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)
+                    : Microsoft.UI.ColorHelper.FromArgb(255, 25, 39, 58));
         RefreshVerticalTabs();
+        RefreshTabGroupsBar();
     }
-    private void BrowserTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void CloseTab(TabEntry entry)
     {
-        if (_changingTabSelection) return;
-        ShowEntry(ActiveEntry);
+        var index = _tabs.IndexOf(entry);
+        if (index < 0) return;
+        _tabs.Remove(entry);
+        if (entry.Visual.Parent is Panel panel) panel.Children.Remove(entry.Visual);
+        if (ReferenceEquals(_activeEntry, entry))
+        {
+            _activeEntry = null;
+            if (_tabs.Count == 0) { ContentHost.Children.Clear(); _ = AddTabAsync(); }
+            else SelectTab(_tabs[Math.Clamp(index - 1, 0, _tabs.Count - 1)]);
+        }
         RefreshVerticalTabs();
     }
     private void VerticalTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_changingTabSelection || VerticalTabs.SelectedIndex < 0 || VerticalTabs.SelectedIndex >= _tabs.Count) return;
         _changingTabSelection = true;
-        BrowserTabs.SelectedItem = _tabs[VerticalTabs.SelectedIndex].Tab;
+        SelectTab(_tabs[VerticalTabs.SelectedIndex]);
         _changingTabSelection = false;
         ShowEntry(ActiveEntry);
     }
@@ -464,7 +466,7 @@ public sealed partial class MainWindow : Window
     private void SetTabOrientation(bool vertical)
     {
         _verticalMode = vertical;
-        BrowserTabs.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
+        BrowserTabsPanel.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
         VerticalTabs.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
         SidebarTitle.Text = vertical ? "VERTICAL TABS" : "AIR SIDEBAR";
         VerticalTabsButton.Background = vertical ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 23, 104, 214)) : null;
@@ -541,7 +543,7 @@ public sealed partial class MainWindow : Window
     {
         var items = _bookmarks.ToList();
         var list = new ListView { ItemsSource = items.Select(b => b.Title + Environment.NewLine + b.Url).ToList(), IsItemClickEnabled = true, MaxHeight = 420 };
-        var dialog = new ContentDialog { Title = "Bookmarks — " + _profile, Content = list, CloseButtonText = "Close", XamlRoot = BrowserTabs.XamlRoot };
+        var dialog = new ContentDialog { Title = "Bookmarks — " + _profile, Content = list, CloseButtonText = "Close", XamlRoot = RootLayout.XamlRoot };
         list.ItemClick += (_, args) => { var index = list.Items.IndexOf(args.ClickedItem); if (index >= 0) { Navigate(items[index].Url); dialog.Hide(); } };
         await dialog.ShowAsync();
     }
@@ -703,7 +705,8 @@ public sealed partial class MainWindow : Window
         RefreshTabGroupsBar();
         TabGroupPicker.ItemsSource = null;
         TabGroupPicker.ItemsSource = _groups;
-        BrowserTabs.TabItems.Clear();
+        BrowserTabsPanel.Children.Clear();
+        _activeEntry = null;
         _tabs.Clear();
         ContentHost.Children.Clear();
         RefreshVerticalTabs();
@@ -734,22 +737,14 @@ public sealed partial class MainWindow : Window
     private void Bookmark_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) { Bookmark_Click(this, new RoutedEventArgs()); args.Handled = true; }
     private void CloseTab_Accelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (BrowserTabs.SelectedItem is TabViewItem tab)
-        {
-            var entry = _tabs.FirstOrDefault(t => t.Tab == tab);
-            if (entry is not null) _tabs.Remove(entry);
-            ContentHost.Children.Clear();
-            BrowserTabs.TabItems.Remove(tab);
-            if (BrowserTabs.TabItems.Count == 0) _ = AddTabAsync();
-            else ShowEntry(ActiveEntry);
-            RefreshVerticalTabs();
-        }
+        if (ActiveEntry is not null) CloseTab(ActiveEntry);
         args.Handled = true;
     }
 
-    private sealed class TabEntry(TabViewItem tab, WebView2 web, Grid host)
+    private sealed class TabEntry(Button tab, WebView2 web, Grid host)
     {
-        public TabViewItem Tab { get; } = tab;
+        public Button Tab { get; } = tab;
+        public FrameworkElement Visual { get; set; } = tab;
         public WebView2 Web { get; } = web;
         public Grid Host { get; } = host;
         public string Group { get; set; } = "Ungrouped";
