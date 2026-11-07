@@ -48,7 +48,7 @@ function setAccountMode(mode){
  $("accountSubmit").textContent=mode==="signin"?"Sign in":"Create AIR Account";
  $("accountTitle").textContent=mode==="signin"?"Welcome back":"Create your AIR Account";
  $("accountHeading").textContent=mode==="signin"?"Good to see you again.":"One account for all of AIR.";
- $("accountIntro").textContent=mode==="signin"?"Sign in to sync across AIR apps. Or keep browsing without an account.":"Create an AIR Account to use AIR Sync and connect across AIR apps.";
+ $("accountIntro").textContent=mode==="signin"?"Sign in to your AIR Account. Browsing also works without an account.":"Create an AIR Account for your AIR profile and upcoming AIR Sync features.";
  $("accountPassword").autocomplete=mode==="signin"?"current-password":"new-password";
 }
 function showAccountMessage(message,isError=false){const el=$("accountMessage");el.textContent=message;el.style.color=isError?"#ff9b9b":""}
@@ -61,7 +61,7 @@ function updateAccountView(){
  $("accountSubmit").classList.toggle("hidden",signed);
  $("accountGoogle").classList.toggle("hidden",signed);$("accountMicrosoft").classList.toggle("hidden",signed);
  $("accountSignedEmail").textContent=session?.user?.email||"Signed in to AIR Account";
- if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is connected on this device."; $("accountTitle").textContent="Your account";}
+ if(signed){$("accountHeading").textContent="You're signed in."; $("accountIntro").textContent="Your AIR Account is signed in on this device. Sync features will be connected separately."; $("accountTitle").textContent="Your account";}
 }
 async function submitAirAccount(){
  const email=$("accountEmail").value.trim(),password=$("accountPassword").value;
