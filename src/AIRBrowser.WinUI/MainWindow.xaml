@@ -27,7 +27,7 @@
                             <Canvas Width="256" Height="256">
                                 <Path Data="M40,190 L101,65 Q112,43 127,43 Q143,43 154,65 L218,190 Q224,204 210,211 Q195,218 186,202 L128,91 L73,202 Q65,219 49,211 Q33,204 40,190 Z" Fill="#168BFF"/>
                                 <Path Data="M26,163 Q92,132 160,132 Q195,132 226,149 Q188,144 156,155 Q91,178 37,197 Q21,190 26,163 Z" Fill="#68E6FF"/>
-                                <Path Data="M26,163 Q92,132 160,132 Q195,132 226,149" Stroke="#E7FBFF" StrokeThickness="5" StrokeLineCap="Round"/>
+                                <Path Data="M26,163 Q92,132 160,132 Q195,132 226,149" Stroke="#E7FBFF" StrokeThickness="5"/>
                             </Canvas>
                         </Viewbox>
                     </Border>
