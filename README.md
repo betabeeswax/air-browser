@@ -14,6 +14,10 @@ Every update to `main` starts a Windows build and publishes a GitHub Release.
 
 Downloads: https://github.com/betabeeswax/air-browser/releases
 
+## Android version
+
+A native Kotlin Android browser is being developed in the `android/` folder. Its GitHub Actions workflow builds a test APK and publishes it in the [Releases tab](https://github.com/betabeeswax/air-browser/releases). Android builds are separate from the Windows installer and portable release.
+
 ## Technology
 
 - C# and .NET 8
