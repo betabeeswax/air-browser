@@ -41,6 +41,8 @@ public sealed class MainForm : Form
     private string _engine = "Bing";
     private string _status = "Starting AIR Browser…";
     private bool _shellReady;
+    private bool _startupInitialized;
+    private string? _pendingInitialUrl;
     private readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 };
     private bool _updateCheckRunning;
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
@@ -132,8 +134,7 @@ public sealed class MainForm : Form
             var html=Path.Combine(AppContext.BaseDirectory,"UI","index.html");
             if(!File.Exists(html))throw new FileNotFoundException("AIR Browser interface files are missing.",html);
             _shell.CoreWebView2.Navigate(new Uri(html).AbsoluteUri);
-            _shellReady=true;_status="Ready";
-            await RestoreOrStartAsync(initialUrl);
+            _shellReady=true;_status="Ready";_pendingInitialUrl=initialUrl;
         }catch(Exception ex){MessageBox.Show(this,"AIR Browser could not initialize its interface or Chromium engine.\n\n"+ex.Message,"AIR Browser",MessageBoxButtons.OK,MessageBoxIcon.Error);}
     }
 
@@ -144,7 +145,7 @@ public sealed class MainForm : Form
             string type=m.GetProperty("type").GetString()??"";
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
-                case "ready": PushState();break;
+                case "ready": PushState();if(!_startupInitialized){_startupInitialized=true;await RestoreOrStartAsync(_pendingInitialUrl);}break;
                 case "settingsChanged": if(m.TryGetProperty("settings",out var profileSettings))SaveProfileSettings(profileSettings);break;
                 case "saveStartBackground": SaveStartBackground(Get("dataUrl"));break;
                 case "removeStartBackground": try{if(File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);SetStatus("Start-page picture removed");Send("toast",new{value="Start-page picture removed"});}catch(Exception ex){SetStatus("Could not remove picture: "+ex.Message);}break;
@@ -321,7 +322,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
                 File.WriteAllText(Path.Combine(ProfileFolder, name + ".json"), JsonSerializer.Serialize(values));
             }
             if(payload.TryGetProperty("settings",out var settings)&&settings.ValueKind==JsonValueKind.Object)File.WriteAllText(ProfileSettingsFile,settings.GetRawText());
-            if(payload.TryGetProperty("startBackground",out var bg)&&bg.ValueKind==JsonValueKind.String){var value=bg.GetString()??"";if(value.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&value.Length<6*1024*1024)File.WriteAllText(StartBackgroundFile,value);}
+            if(payload.TryGetProperty("startBackground",out var bg)&&bg.ValueKind==JsonValueKind.String){var value=bg.GetString()??"";if(value.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&value.Length<6*1024*1024)File.WriteAllText(StartBackgroundFile,value);else if(value.Length==0&&File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);}
             SetStatus("AIR Sync profile restored");
             Send("toast", new { value = "This profile was restored from AIR Sync." });PushState();
         }
