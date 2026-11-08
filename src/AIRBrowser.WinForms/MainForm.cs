@@ -44,6 +44,9 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 };
     private bool _updateCheckRunning;
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
+    private string ProfileSettingsFile => Path.Combine(ProfileFolder,"settings.json");
+    private string SessionFile => Path.Combine(ProfileFolder,"session.json");
+    private string StartBackgroundFile => Path.Combine(ProfileFolder,"start-background.txt");
     private static string Safe(string s)=>string.Concat(s.Select(c=>char.IsLetterOrDigit(c)||c=='-'?c:'_'));
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd,int msg,IntPtr wParam,IntPtr lParam);
@@ -90,7 +93,7 @@ public sealed class MainForm : Form
             _shellPanel.Height += Math.Sign(delta) * Math.Max(8, Math.Abs(delta) / 4);
         };
         Shown+=async (_,_)=>{await InitializeShellAsync(initialUrl);StartAutomaticUpdates();};
-        FormClosing+=(_,_)=>{_overlayAnimation.Stop();_overlayAnimation.Dispose();_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
+        FormClosing+=(_,_)=>{SaveSession();_overlayAnimation.Stop();_overlayAnimation.Dispose();_updateTimer.Stop();_updateTimer.Dispose();foreach(var t in _tabs)t.View.Dispose();_shell.Dispose();};
     }
 
     private static Icon? LoadIcon(){try{var p=Path.Combine(AppContext.BaseDirectory,"Assets","air-browser.ico");if(!File.Exists(p))p=Path.Combine(AppContext.BaseDirectory,"air-browser.ico");return File.Exists(p)?new Icon(p):null;}catch{return null;}}
@@ -130,7 +133,7 @@ public sealed class MainForm : Form
             if(!File.Exists(html))throw new FileNotFoundException("AIR Browser interface files are missing.",html);
             _shell.CoreWebView2.Navigate(new Uri(html).AbsoluteUri);
             _shellReady=true;_status="Ready";
-            await AddTabAsync(initialUrl);
+            await RestoreOrStartAsync(initialUrl);
         }catch(Exception ex){MessageBox.Show(this,"AIR Browser could not initialize its interface or Chromium engine.\n\n"+ex.Message,"AIR Browser",MessageBoxButtons.OK,MessageBoxIcon.Error);}
     }
 
@@ -142,6 +145,9 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();break;
+                case "settingsChanged": if(m.TryGetProperty("settings",out var profileSettings))SaveProfileSettings(profileSettings);break;
+                case "saveStartBackground": SaveStartBackground(Get("dataUrl"));break;
+                case "removeStartBackground": try{if(File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);SetStatus("Start-page picture removed");Send("toast",new{value="Start-page picture removed"});}catch(Exception ex){SetStatus("Could not remove picture: "+ex.Message);}break;
                 case "windowMinimize": WindowState=FormWindowState.Minimized;break;
                 case "windowMaximize": WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;break;
                 case "windowClose": Close();break;
@@ -197,7 +203,7 @@ public sealed class MainForm : Form
             view.CoreWebView2.Settings.IsStatusBarEnabled=false;
             view.CoreWebView2.DocumentTitleChanged+=(_,_)=>{tab.Title=string.IsNullOrWhiteSpace(view.CoreWebView2.DocumentTitle)?"New tab":view.CoreWebView2.DocumentTitle;PushState();};
             view.CoreWebView2.NavigationStarting+=(_,a)=>{if(_active==tab){Send("address",new{value=a.Uri});SetStatus("Loading…");}};
-            view.CoreWebView2.NavigationCompleted+=(_,a)=>{if(a.IsSuccess){RecordHistory(view.CoreWebView2.Source);_ = FillSavedPasswordAsync(view);}SetStatus(a.IsSuccess?"Ready":"Page could not be loaded");PushState();};
+            view.CoreWebView2.NavigationCompleted+=(_,a)=>{if(a.IsSuccess){RecordHistory(view.CoreWebView2.Source);_ = FillSavedPasswordAsync(view);SaveSession();}SetStatus(a.IsSuccess?"Ready":"Page could not be loaded");PushState();};
             view.CoreWebView2.NewWindowRequested+=async(_,a)=>{a.Handled=true;await AddTabAsync(a.Uri);};
             view.CoreWebView2.WebMessageReceived += (_, message) =>
             {
@@ -223,12 +229,12 @@ public sealed class MainForm : Form
             };
             await view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"(()=>{document.addEventListener('submit',e=>{const f=e.target;if(!(f instanceof HTMLFormElement)||location.protocol!=='https:')return;const p=f.querySelector('input[type=password]');if(!p||!p.value)return;const u=f.querySelector('input[autocomplete=username],input[type=email],input[name*=user i],input[type=text]');chrome.webview.postMessage({type:'airSavePassword',url:location.origin,username:u?.value||'',password:p.value,title:document.title});},true)})();");
             view.CoreWebView2.DownloadStarting+=(_,a)=>{var folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads");Directory.CreateDirectory(folder);var name=Path.GetFileName(a.ResultFilePath);if(!string.IsNullOrWhiteSpace(name))a.ResultFilePath=Path.Combine(folder,name);SetStatus("Downloading "+name);};
-            if(!string.IsNullOrWhiteSpace(url))NavigateEntry(tab,url);else view.CoreWebView2.NavigateToString(StartHtml);
+            if(!string.IsNullOrWhiteSpace(url))NavigateEntry(tab,url);else view.CoreWebView2.NavigateToString(BuildStartHtml());
         }catch(Exception ex){SetStatus("Browser engine error: "+ex.Message);}
     }
 
     private const string StartHtml = @"<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>New tab</title><style>
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 12%,#183b68 0,#0d1a2d 42%,#080e19 80%);color:#eef5ff;font:16px Segoe UI,Arial;min-height:100vh;display:flex;justify-content:center}.page{width:min(900px,90%);padding:9vh 20px 40px;text-align:center}.logo{margin:auto;width:70px;height:70px;border-radius:22px;background:linear-gradient(145deg,#3694ff,#114c9c);display:grid;place-items:center;font-size:43px;font-weight:800;box-shadow:0 14px 35px #0005}.brand{font-size:33px;letter-spacing:9px;margin:14px 0 5px}.tag{color:#9db5d3;margin:0 0 30px}.search{display:flex;gap:8px;max-width:650px;margin:0 auto 34px;padding:7px;background:#f4f7fc;border-radius:16px;box-shadow:0 10px 40px #0005}.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#172b45;padding:8px 13px;font:15px Segoe UI}.search button{border:0;border-radius:11px;background:#1768d6;color:white;padding:0 20px;font:14px Segoe UI;cursor:pointer}.label{max-width:650px;margin:0 auto 12px;text-align:left;color:#9db5d3;font-size:12px}.links{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:650px;margin:auto}.link{padding:17px 8px;background:#172943;border:1px solid #2a4565;border-radius:14px;color:#edf5ff;text-decoration:none}.link:hover{background:#23436a}.ico{display:grid;place-items:center;margin:0 auto 9px;width:38px;height:38px;border-radius:12px;background:#234c7c;font-size:20px}.link small{display:block;color:#9bb2d0;font-size:11px;margin-top:4px}@media(max-width:550px){.links{grid-template-columns:repeat(2,1fr)}.page{padding-top:6vh}}
+*{box-sizing:border-box}body{margin:0;background:__AIR_START_BACKGROUND__;color:#eef5ff;font:16px Segoe UI,Arial;min-height:100vh;display:flex;justify-content:center}.page{width:min(900px,90%);padding:9vh 20px 40px;text-align:center}.logo{margin:auto;width:70px;height:70px;border-radius:22px;background:linear-gradient(145deg,#3694ff,#114c9c);display:grid;place-items:center;font-size:43px;font-weight:800;box-shadow:0 14px 35px #0005}.brand{font-size:33px;letter-spacing:9px;margin:14px 0 5px}.tag{color:#9db5d3;margin:0 0 30px}.search{display:flex;gap:8px;max-width:650px;margin:0 auto 34px;padding:7px;background:#f4f7fc;border-radius:16px;box-shadow:0 10px 40px #0005}.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#172b45;padding:8px 13px;font:15px Segoe UI}.search button{border:0;border-radius:11px;background:#1768d6;color:white;padding:0 20px;font:14px Segoe UI;cursor:pointer}.label{max-width:650px;margin:0 auto 12px;text-align:left;color:#9db5d3;font-size:12px}.links{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:650px;margin:auto}.link{padding:17px 8px;background:#172943;border:1px solid #2a4565;border-radius:14px;color:#edf5ff;text-decoration:none}.link:hover{background:#23436a}.ico{display:grid;place-items:center;margin:0 auto 9px;width:38px;height:38px;border-radius:12px;background:#234c7c;font-size:20px}.link small{display:block;color:#9bb2d0;font-size:11px;margin-top:4px}@media(max-width:550px){.links{grid-template-columns:repeat(2,1fr)}.page{padding-top:6vh}}
 </style></head><body><main class='page'><div class='logo'>A</div><div class='brand'>AIR</div><p class='tag'>A clearer space for everything you do online.</p><form class='search' action='https://www.bing.com/search' method='get'><input name='q' placeholder='Search the web with Bing' autofocus><button>Search</button></form><div class='label'>QUICK LINKS</div><div class='links'><a class='link' href='https://www.bing.com'><span class='ico'>⌕</span>Bing<small>Search the web</small></a><a class='link' href='https://www.youtube.com'><span class='ico'>▶</span>YouTube<small>Watch videos</small></a><a class='link' href='https://www.google.com'><span class='ico'>G</span>Google<small>Explore the web</small></a><a class='link' href='https://www.wikipedia.org'><span class='ico'>W</span>Wikipedia<small>Learn something</small></a></div></main></body></html>";
 
     private const string DinoHtml = """
@@ -279,7 +285,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     }
     private void Select(string id){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;Select(t);}
     private void Select(TabEntry t){_active=t;foreach(var x in _tabs)x.View.Visible=x==t;if(t.View.Parent is not null)t.View.BringToFront();Text=(t.Title=="New tab"?"AIR Browser":t.Title+" - AIR Browser");PushState();}
-    private void Close(string id){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;var index=_tabs.IndexOf(t);_tabs.Remove(t);_browserPanel.Controls.Remove(t.View);t.View.Dispose();if(_active==t){_active=null;if(_tabs.Count>0)Select(_tabs[Math.Clamp(index-1,0,_tabs.Count-1)]);else _=AddTabAsync();}PushState();}
+    private void Close(string id){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;var index=_tabs.IndexOf(t);_tabs.Remove(t);_browserPanel.Controls.Remove(t.View);t.View.Dispose();if(_active==t){_active=null;if(_tabs.Count>0)Select(_tabs[Math.Clamp(index-1,0,_tabs.Count-1)]);else _=AddTabAsync();}SaveSession();PushState();}
     private void CreateGroup(string name){name=name.Trim();if(name.Length==0)return;if(!_groups.Contains(name,StringComparer.OrdinalIgnoreCase))_groups.Add(name);if(_active is not null)_active.Group=name;SetStatus("Created "+name);PushState();}
     private void GroupTabs(string source,string target){var a=_tabs.FirstOrDefault(t=>t.Id==source);var b=_tabs.FirstOrDefault(t=>t.Id==target);if(a is null||b is null||a==b)return;var group=b.Group!="Ungrouped"?b.Group:a.Group!="Ungrouped"?a.Group:"Group "+(_groups.Count);if(!_groups.Contains(group))_groups.Add(group);a.Group=group;b.Group=group;_tabs.Remove(a);var targetIndex=_tabs.IndexOf(b);_tabs.Insert(targetIndex+1,a);SetStatus("Tabs grouped together");PushState();}
     private void MoveToGroup(string id,string group){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;if(group!="Ungrouped"&&!_groups.Contains(group))_groups.Add(group);t.Group=group;PushState();}
@@ -295,7 +301,9 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
                 var path = Path.Combine(ProfileFolder, name);
                 return File.Exists(path) ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(path)) ?? new() : new();
             }
-            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json") });
+            var settings = File.Exists(ProfileSettingsFile) ? JsonDocument.Parse(File.ReadAllText(ProfileSettingsFile)).RootElement.Clone() : JsonDocument.Parse("{}").RootElement.Clone();
+            var background = File.Exists(StartBackgroundFile) ? File.ReadAllText(StartBackgroundFile) : "";
+            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json"), settings, startBackground = background });
         }
         catch (Exception ex) { SetStatus("Could not prepare AIR Sync data: " + ex.Message); }
     }
@@ -312,8 +320,10 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
                     .Select(x => x.GetString() ?? "").Where(x => x.Length < 4096).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 File.WriteAllText(Path.Combine(ProfileFolder, name + ".json"), JsonSerializer.Serialize(values));
             }
+            if(payload.TryGetProperty("settings",out var settings)&&settings.ValueKind==JsonValueKind.Object)File.WriteAllText(ProfileSettingsFile,settings.GetRawText());
+            if(payload.TryGetProperty("startBackground",out var bg)&&bg.ValueKind==JsonValueKind.String){var value=bg.GetString()??"";if(value.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&value.Length<6*1024*1024)File.WriteAllText(StartBackgroundFile,value);}
             SetStatus("AIR Sync profile restored");
-            Send("toast", new { value = "This profile was restored from AIR Sync." });
+            Send("toast", new { value = "This profile was restored from AIR Sync." });PushState();
         }
         catch (Exception ex) { SetStatus("Could not restore AIR Sync data: " + ex.Message); }
     }
@@ -432,6 +442,11 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
         close.Click+=(_,_)=>dialog.Close();buttons.Controls.Add(remove);buttons.Controls.Add(close);dialog.Controls.Add(list);dialog.Controls.Add(buttons);dialog.ShowDialog(this);
     }
     private void SaveProfiles(){try{File.WriteAllText(ProfilesFile,JsonSerializer.Serialize(_profiles));}catch{}}
+    private void SaveProfileSettings(JsonElement settings){try{Directory.CreateDirectory(ProfileFolder);File.WriteAllText(ProfileSettingsFile,settings.GetRawText());}catch(Exception ex){SetStatus("Could not save profile settings: "+ex.Message);}}
+    private void SaveSession(){try{Directory.CreateDirectory(ProfileFolder);var urls=_tabs.Select(t=>t.View.CoreWebView2?.Source??"").Where(u=>Uri.TryCreate(u,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")).Distinct().ToList();File.WriteAllText(SessionFile,JsonSerializer.Serialize(urls));}catch{}}
+    private async Task RestoreOrStartAsync(string? initialUrl){if(!string.IsNullOrWhiteSpace(initialUrl)){await AddTabAsync(initialUrl);return;}try{if(File.Exists(ProfileSettingsFile)){using var settings=JsonDocument.Parse(File.ReadAllText(ProfileSettingsFile));var root=settings.RootElement;var restore=root.TryGetProperty("restoreTabs",out var restoreValue)&&restoreValue.ValueKind==JsonValueKind.True;if(restore&&File.Exists(SessionFile)){var urls=JsonSerializer.Deserialize<List<string>>(File.ReadAllText(SessionFile))??new();var valid=urls.Where(u=>Uri.TryCreate(u,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")).Take(30).ToList();if(valid.Count>0){foreach(var url in valid)await AddTabAsync(url);SetStatus("Previous tabs restored");return;}}if(root.TryGetProperty("startup",out var startup)&&startup.GetString()=="custom"&&root.TryGetProperty("customStartupUrl",out var custom)){var target=custom.GetString()??"";if(Uri.TryCreate(target,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")){await AddTabAsync(uri.ToString());return;}}}}catch(Exception ex){SetStatus("Could not restore previous session: "+ex.Message);}await AddTabAsync();}
+    private void SaveStartBackground(string dataUrl){try{if(!dataUrl.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)||dataUrl.Length>5*1024*1024||!(dataUrl.StartsWith("data:image/png;base64,")||dataUrl.StartsWith("data:image/jpeg;base64,")||dataUrl.StartsWith("data:image/webp;base64,")))throw new InvalidOperationException("Choose a PNG, JPG or WebP image under 4 MB.");Directory.CreateDirectory(ProfileFolder);File.WriteAllText(StartBackgroundFile,dataUrl);SetStatus("Start-page picture saved for "+_profile);Send("toast",new{value="Start-page picture saved"});}catch(Exception ex){SetStatus("Could not save start-page picture: "+ex.Message);Send("toast",new{value=ex.Message});}}
+    private string BuildStartHtml(){var fallback="radial-gradient(ellipse at 50% 12%,#183b68 0,#0d1a2d 42%,#080e19 80%)";try{if(File.Exists(StartBackgroundFile)){var image=File.ReadAllText(StartBackgroundFile);if(image.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&image.Length<5*1024*1024)return StartHtml.Replace("__AIR_START_BACKGROUND__", "url('"+image+"') center/cover fixed, "+fallback);}}catch{}return StartHtml.Replace("__AIR_START_BACKGROUND__",fallback);}
     private void CreateProfile(string name){name=name.Trim();if(name.Length==0||name.Length>32||name.Any(char.IsControl)){SetStatus("Choose a profile name up to 32 characters");return;}if(_profiles.Contains(name,StringComparer.OrdinalIgnoreCase)){SetStatus("That profile already exists");return;}_profiles.Add(name);SaveProfiles();SwitchProfile(name);SetStatus("Created profile: "+name);}
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
     private void SwitchProfile(string name){if(!_profiles.Contains(name)||name==_profile)return;_profile=name;foreach(var t in _tabs){_browserPanel.Controls.Remove(t.View);t.View.Dispose();}_tabs.Clear();_active=null;_ = AddTabAsync();SetStatus("Profile: "+name);}
