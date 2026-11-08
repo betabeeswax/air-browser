@@ -143,7 +143,7 @@ $("winMin").onclick=()=>send("windowMinimize");$("winMax").onclick=()=>send("win
 document.querySelector(".brand")?.addEventListener("mousedown",()=>send("dragWindow"));
 ["importBookmarks","exportBookmarks","importPasswords","exportPasswords"].forEach(id=>$(id).onclick=()=>send(id));
 window.chrome?.webview?.addEventListener("message",async e=>{const m=e.data;if(m.type==="state"){tabs=m.data.tabs;active=m.data.active;render();$("address").value=m.data.address||"";$("hint").textContent=m.data.status||"Ready";const previousProfile=window.currentProfile||"Personal";window.currentProfile=m.data.profile||"Personal";profiles=m.data.profiles||profiles;if(previousProfile!==window.currentProfile){applySettings();send("settingsChanged",{settings:readProfileSettings()})}renderProfiles();updateAccountView()}else if(m.type==="address")$("address").value=m.data.value;else if(m.type==="status")$("hint").textContent=m.data.value;else if(m.type==="toast")toast(m.data.value);else if(m.type==="authSession"){localStorage.setItem(sessionKey(),JSON.stringify(m.data));updateAccountView();showAccountMessage("Signed in to AIR Account. AIR Sync is now available.");toast("Signed in to AIR Account")}else if(m.type==="syncData"){await backupSyncData(m.data)}});
-applySettings();send("ready");
+applySettings();send("settingsChanged",{settings:readProfileSettings()});send("ready");
 document.addEventListener("keydown",e=>{
  const mod=e.ctrlKey||e.metaKey;
  if(!mod)return;
