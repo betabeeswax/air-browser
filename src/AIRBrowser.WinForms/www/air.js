@@ -118,10 +118,10 @@ async function restoreSyncData(){
   const packed=JSON.parse(rows[0].encrypted_payload),salt=fromBase64(packed.salt),iv=fromBase64(packed.iv),cipher=fromBase64(packed.ciphertext);
   const key=await deriveSyncKey(creds.pass,salt),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,cipher),data=JSON.parse(new TextDecoder().decode(plain));
   if(data.profile!==profile)throw new Error("This backup belongs to a different profile.");
-  if(!confirm("Restore the cloud backup for "+profile+"? This replaces this profile's local bookmarks and history."))return;
+  if(!confirm("Restore the cloud backup for "+profile+"? This replaces this profile's bookmarks, history and open tabs."))return;
   if(data.settings)localStorage.setItem(profileSettingsKey(),JSON.stringify(data.settings));
   if(data.profileMeta)localStorage.setItem("airProfileMeta",JSON.stringify(data.profileMeta));
-  if(data.settings)send("settingsChanged",{settings:data.settings});applySettings();send("syncImport",{payload:{bookmarks:data.bookmarks||[],history:data.history||[],settings:data.settings||{},startBackground:data.startBackground||""}});
+  if(data.settings)send("settingsChanged",{settings:data.settings});applySettings();send("syncImport",{payload:{bookmarks:data.bookmarks||[],history:data.history||[],settings:data.settings||{},startBackground:data.startBackground||"",openTabs:data.openTabs||[]}});
   showAccountMessage("Backup decrypted and restored for "+profile+".");
  }catch(e){showAccountMessage("Restore failed. Check your passphrase. "+e.message,true)}
 }
