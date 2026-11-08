@@ -136,7 +136,7 @@ $("syncBackup").onclick=()=>{send("syncExport")};
 $("syncRestore").onclick=restoreSyncData;
 $("accountTry").onclick=()=>{hidePanels();toast("You're using AIR without an account")};
 $("accountSignOut").onclick=()=>{localStorage.removeItem(sessionKey());updateAccountView();setAccountMode("signin");showAccountMessage("You have signed out.");toast("Signed out")};
-$("linkAccount").onclick=()=>{updateAccountView();setAccountMode("signin");showPanel("accountPanel")};
+
 updateAccountView();setAccountMode("signin");
 
 $("clearBrowsing").onclick=()=>{if(confirm("Clear browsing history and saved cookies for this profile?"))send("clearData")};
