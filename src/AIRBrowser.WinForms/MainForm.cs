@@ -1,5 +1,6 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using Microsoft.Data.Sqlite;
 using System.Text.Json;
 using System.Diagnostics;
 using System.Net.Http;
@@ -179,6 +180,7 @@ public sealed class MainForm : Form
                 case "bookmark": SaveBookmark();break;
                 case "exportBookmarks": ExportBookmarks();break;
                 case "importBookmarks": ImportBookmarks();break;
+                case "importBrowser": ImportFromBrowser();break;
                 case "importPasswords": ImportPasswords();break;
                 case "exportPasswords": ExportPasswords();break;
                 case "newGroup": CreateGroup(Get("name"));break;
@@ -364,6 +366,34 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             File.WriteAllText(dialog.FileName,html+"</DL>\n",Encoding.UTF8);SetStatus("Bookmarks exported");
         } catch(Exception ex){SetStatus("Bookmark export failed: "+ex.Message);}
     }
+    private void ImportFromBrowser()
+    {
+        using var picker=new Form{Text="Import from another browser",Size=new Size(430,190),FormBorderStyle=FormBorderStyle.FixedDialog,StartPosition=FormStartPosition.CenterParent,MaximizeBox=false,MinimizeBox=false,BackColor=Color.FromArgb(13,23,38),ForeColor=Color.White};
+        var label=new Label{Text="Choose the browser to transfer bookmarks from:",Dock=DockStyle.Top,Height=48,Padding=new Padding(14),ForeColor=Color.White};
+        var source=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Left=18,Top=58,Width=370};source.Items.AddRange(new object[]{"Microsoft Edge","Google Chrome","Brave","Firefox"});source.SelectedIndex=0;
+        var go=new Button{Text="Import bookmarks",Left=248,Top=105,Width=140,Height=30,DialogResult=DialogResult.OK};var cancel=new Button{Text="Cancel",Left=145,Top=105,Width=90,Height=30,DialogResult=DialogResult.Cancel};picker.Controls.Add(label);picker.Controls.Add(source);picker.Controls.Add(go);picker.Controls.Add(cancel);picker.AcceptButton=go;picker.CancelButton=cancel;
+        if(picker.ShowDialog(this)!=DialogResult.OK)return;
+        try
+        {
+            var imported=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if(source.SelectedItem?.ToString()=="Firefox")
+            {
+                var root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"Mozilla","Firefox","Profiles");
+                if(Directory.Exists(root))foreach(var profile in Directory.GetDirectories(root)){var db=Path.Combine(profile,"places.sqlite");if(!File.Exists(db))continue;using var connection=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=db,Mode=SqliteOpenMode.ReadOnly}.ToString());connection.Open();using var command=connection.CreateCommand();command.CommandText="SELECT DISTINCT p.url FROM moz_bookmarks b JOIN moz_places p ON p.id=b.fk WHERE b.type=1 AND p.url LIKE 'http%'";using var reader=command.ExecuteReader();while(reader.Read())if(reader.GetString(0) is string url)imported.Add(url);}
+            }
+            else
+            {
+                var local=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);var product=source.SelectedItem?.ToString() switch{"Microsoft Edge"=>Path.Combine(local,"Microsoft","Edge","User Data"),"Google Chrome"=>Path.Combine(local,"Google","Chrome","User Data"),_=>Path.Combine(local,"BraveSoftware","Brave-Browser","User Data")};
+                if(Directory.Exists(product))foreach(var profile in Directory.GetDirectories(product).Where(p=>Path.GetFileName(p).Equals("Default",StringComparison.OrdinalIgnoreCase)||Path.GetFileName(p).StartsWith("Profile ",StringComparison.OrdinalIgnoreCase))) {var file=Path.Combine(profile,"Bookmarks");if(!File.Exists(file))continue;using var doc=JsonDocument.Parse(File.ReadAllText(file));var stack=new Stack<JsonElement>();stack.Push(doc.RootElement);while(stack.Count>0){var item=stack.Pop();if(item.ValueKind==JsonValueKind.Object){if(item.TryGetProperty("type",out var type)&&type.GetString()=="url"&&item.TryGetProperty("url",out var u)&&u.ValueKind==JsonValueKind.String)imported.Add(u.GetString()??"");foreach(var property in item.EnumerateObject())if(property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)stack.Push(property.Value);}else if(item.ValueKind==JsonValueKind.Array)foreach(var child in item.EnumerateArray())stack.Push(child);}}
+            }
+            var valid=imported.Where(u=>Uri.TryCreate(u,UriKind.Absolute,out var uri)&&uri.Scheme is "http" or "https").ToList();
+            if(valid.Count==0){MessageBox.Show(this,"No bookmarks were found. Make sure the selected browser has a profile and bookmarks saved.","Browser import",MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
+            var filePath=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var saved=File.Exists(filePath)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(filePath))??new():new List<string>();var before=saved.Count;foreach(var url in valid)if(!saved.Contains(url,StringComparer.OrdinalIgnoreCase))saved.Add(url);File.WriteAllText(filePath,JsonSerializer.Serialize(saved));var added=saved.Count-before;
+            MessageBox.Show(this,$"Imported {added} bookmarks from {source.SelectedItem}.\n\nPasswords are protected by the source browser. To transfer them, export a password CSV from that browser and use Settings → Import & export → Import CSV.","Browser import complete",MessageBoxButtons.OK,MessageBoxIcon.Information);SetStatus($"Imported {added} bookmarks from {source.SelectedItem}");
+        }
+        catch(Exception ex){MessageBox.Show(this,"Browser import failed. Close the source browser and try again.\n\n"+ex.Message,"Browser import",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
+    }
+
     private void ImportBookmarks()
     {
         try {
