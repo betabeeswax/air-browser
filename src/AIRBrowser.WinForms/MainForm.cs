@@ -601,9 +601,26 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
         m.Items.Add("Check for updates", null, async (_, _) => await CheckForUpdatesAsync(true));
         m.Show(Cursor.Position);
     }
-    private void ShowBookmarks(){var file=Path.Combine(ProfileFolder,"bookmarks.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("Bookmarks",list);if(selected is not null)Navigate(selected);}
-    private void ShowHistory(){var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("History",list.AsEnumerable().Reverse().ToList());if(selected is not null)Navigate(selected);}
-    private string? ShowList(string title,List<string> values){using var form=new Form{Text=title,Size=new Size(700,500),StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(13,23,38)};var list=new ListBox{Dock=DockStyle.Fill,BackColor=Color.FromArgb(20,34,54),ForeColor=Color.White,DataSource=values};form.Controls.Add(list);return form.ShowDialog(this)==DialogResult.OK?list.SelectedItem as string:null;}
+    private void ShowBookmarks(){var file=Path.Combine(ProfileFolder,"bookmarks.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("Bookmarks",file,list,false);if(selected is not null)Navigate(selected);}
+    private void ShowHistory(){var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();var selected=ShowList("History",file,list,true);if(selected is not null)Navigate(selected);}
+    private string? ShowList(string title,string file,List<string> values,bool newestFirst)
+    {
+        using var form=new Form{Text=title,Size=new Size(760,500),MinimumSize=new Size(560,360),StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(13,23,38),ForeColor=Color.White};
+        var list=new ListBox{Dock=DockStyle.Fill,BackColor=Color.FromArgb(20,34,54),ForeColor=Color.White,IntegralHeight=false};
+        void RefreshItems(){list.Items.Clear();var items=newestFirst?values.AsEnumerable().Reverse():values.AsEnumerable();foreach(var item in items)list.Items.Add(item);}
+        RefreshItems();
+        string? selected=null;
+        var buttons=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=52,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(8)};
+        var open=new Button{Text="Open",Width=100,Height=30};
+        var remove=new Button{Text="Remove selected website",Width=170,Height=30};
+        var close=new Button{Text="Close",Width=90,Height=30};
+        open.Click+=(_,_)=>{if(list.SelectedIndex<0)return;selected=list.SelectedItem?.ToString();form.DialogResult=DialogResult.OK;form.Close();};
+        remove.Click+=(_,_)=>{if(list.SelectedIndex<0)return;var index=newestFirst?values.Count-1-list.SelectedIndex:list.SelectedIndex;var target=values[index];if(MessageBox.Show(form,"Remove this website from "+title+"?\n\n"+target,"Remove website",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;values.RemoveAt(index);try{Directory.CreateDirectory(Path.GetDirectoryName(file)!);File.WriteAllText(file,JsonSerializer.Serialize(values));RefreshItems();SetStatus("Website removed from "+title);}catch(Exception ex){SetStatus("Could not update "+title+": "+ex.Message);}};
+        close.Click+=(_,_)=>form.Close();
+        list.DoubleClick+=(_,_)=>open.PerformClick();
+        buttons.Controls.Add(close);buttons.Controls.Add(remove);buttons.Controls.Add(open);form.Controls.Add(list);form.Controls.Add(buttons);
+        return form.ShowDialog(this)==DialogResult.OK?selected:null;
+    }
     private void SetStatus(string value){_status=value;if(!IsDisposed&&IsHandleCreated)_statusLabel.Text=value;Send("status",new{value});}
     private void PushState(){if(!_shellReady)return;Send("state",new{tabs=_tabs.Select(t=>new{id=t.Id,title=t.Title,group=t.Group}).ToArray(),groups=_groups.ToArray(),active=_active?.Id,address=_active?.View.CoreWebView2?.Source??"",status=_status,profile=_profile,profiles=_profiles.ToArray()});}
     private void Send(string type,object data){if(!_shellReady||_shell.CoreWebView2 is null)return;_shell.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new{type,data}));}
