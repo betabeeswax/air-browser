@@ -161,6 +161,7 @@ public sealed class MainForm : Form
                 case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))await ImportSyncDataAsync(syncPayload);break;
                 case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
                 case "newTab": await AddTabAsync();break;
+                case "ready": PushBookmarks();break;
                 case "select": Select(Get("id"));break;
                 case "close": Close(Get("id"));break;
                 case "closeOthers": CloseOtherTabs(Get("id"));break;
@@ -177,7 +178,8 @@ public sealed class MainForm : Form
                 case "zoomIn": if(_active is not null)_active.View.ZoomFactor=Math.Min(3,_active.View.ZoomFactor+0.1);break;
                 case "zoomOut": if(_active is not null)_active.View.ZoomFactor=Math.Max(0.5,_active.View.ZoomFactor-0.1);break;
                 case "zoomReset": if(_active is not null)_active.View.ZoomFactor=1;break;
-                case "bookmark": SaveBookmark();break;
+                case "bookmark": SaveBookmark();PushBookmarks();break;
+                case "openBookmark": Navigate(Get("url"));break;
                 case "exportBookmarks": ExportBookmarks();break;
                 case "importBookmarks": ImportBookmarks();break;
                 case "importBrowser": ImportFromBrowser();break;
@@ -351,7 +353,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
         catch (Exception ex) { SetStatus("Could not restore AIR Sync data: " + ex.Message); }
     }
 
-    private void SaveBookmark(){if(_active?.View.CoreWebView2?.Source is not string url)return;var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();if(!list.Contains(url))list.Add(url);File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus("Bookmark saved");}
+    private void SaveBookmark(){if(_active?.View.CoreWebView2?.Source is not string url)return;var file=Path.Combine(ProfileFolder,"bookmarks.json");Directory.CreateDirectory(ProfileFolder);var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();if(!list.Contains(url))list.Add(url);File.WriteAllText(file,JsonSerializer.Serialize(list));SetStatus("Bookmark saved");PushBookmarks();}
 
     private string PasswordVaultFile => Path.Combine(ProfileFolder, "passwords.dpapi");
     private void ExportBookmarks()
@@ -668,7 +670,8 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
         return form.ShowDialog(this)==DialogResult.OK?selected:null;
     }
     private void SetStatus(string value){_status=value;if(!IsDisposed&&IsHandleCreated)_statusLabel.Text=value;Send("status",new{value});}
-    private void PushState(){if(!_shellReady)return;Send("state",new{tabs=_tabs.Select(t=>new{id=t.Id,title=t.Title,group=t.Group}).ToArray(),groups=_groups.ToArray(),active=_active?.Id,address=_active?.View.CoreWebView2?.Source??"",status=_status,profile=_profile,profiles=_profiles.ToArray()});}
+    private void PushState(){if(!_shellReady)return;var address=_active?.View.CoreWebView2?.Source??"";var isNewTab=_active is not null&&_active.Title=="New tab"&&(string.IsNullOrWhiteSpace(address)||address=="about:blank");Send("state",new{tabs=_tabs.Select(t=>new{id=t.Id,title=t.Title,group=t.Group}).ToArray(),groups=_groups.ToArray(),active=_active?.Id,address,status=_status,profile=_profile,profiles=_profiles.ToArray(),isNewTab});}
+    private void PushBookmarks(){try{var file=Path.Combine(ProfileFolder,"bookmarks.json");var items=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();Send("bookmarksData",new{items=items.Distinct().ToArray()});}catch{Send("bookmarksData",new{items=Array.Empty<string>()});}}
     private void Send(string type,object data){if(!_shellReady||_shell.CoreWebView2 is null)return;_shell.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new{type,data}));}
     private sealed class TabEntry(string id,WebView2 view,string title){public string Id=id;public WebView2 View=view;public string Title=title;public string Group="Ungrouped";}
 }
