@@ -538,7 +538,6 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             {
                 _declinedUpdateBuild = latestBuild;
                 SetStatus("Update postponed");
-                if (manual) MessageBox.Show(this, "No problem. AIR Browser will not install this update. You can check again from Settings → About whenever you are ready.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
