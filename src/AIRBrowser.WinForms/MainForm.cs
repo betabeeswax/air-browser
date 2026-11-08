@@ -45,6 +45,7 @@ public sealed class MainForm : Form
     private string? _pendingInitialUrl;
     private readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 };
     private bool _updateCheckRunning;
+    private int _declinedUpdateBuild = -1;
     private string ProfileFolder => Path.Combine(_root,"Profiles",Safe(_profile));
     private string ProfileSettingsFile => Path.Combine(ProfileFolder,"settings.json");
     private string SessionFile => Path.Combine(ProfileFolder,"session.json");
@@ -520,6 +521,24 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
                     SetStatus("AIR Browser is up to date");
                     MessageBox.Show(this, $"You already have the latest version of AIR Browser (build {currentBuild}).", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+                return;
+            }
+
+            // Never download or install an update until the user explicitly approves it.
+            // Remember a declined build for this app session so the automatic checker does not
+            // keep showing the same prompt every six hours.
+            if (_declinedUpdateBuild == latestBuild) return;
+            var decision = MessageBox.Show(
+                this,
+                $"AIR Browser build {latestBuild} is available.\n\nWould you like to download and install it now? Your browser profiles and saved data will be kept.",
+                "AIR Browser update available",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+            if (decision != DialogResult.Yes)
+            {
+                _declinedUpdateBuild = latestBuild;
+                SetStatus("Update postponed");
+                if (manual) MessageBox.Show(this, "No problem. AIR Browser will not install this update. You can check again from Settings → About whenever you are ready.", "AIR Browser updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
