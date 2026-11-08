@@ -2,7 +2,7 @@
 
 **A native Windows 11 browser from AIR.**
 
-Website: https://air-browser-rha-nine.vercel.app  
+Website: https://air-browser.vercel.app  
 Source: https://github.com/betabeeswax/air-browser
 
 ## Download
@@ -10,14 +10,14 @@ Source: https://github.com/betabeeswax/air-browser
 Every update to `main` starts a Windows build and publishes a GitHub Release.
 
 - **Installer:** `AIR-Browser-Setup.exe` installs AIR Browser.
-- **Portable:** `AIR-Browser-Portable.zip` contains the app folder. Extract it somewhere you can write files, then run `AIRBrowser.WinUI.exe`.
+- **Portable:** `AIR-Browser-Portable.zip` contains the app folder. Extract it somewhere you can write files, then run `AIRBrowser.exe`.
 
 Downloads: https://github.com/betabeeswax/air-browser/releases
 
 ## Technology
 
 - C# and .NET 8
-- WinUI 3 for the native Windows interface
+- WinForms shell with an HTML, CSS and JavaScript interface
 - Microsoft Edge WebView2 Fixed Version 156.0.4314.56 (Chromium) bundled with the app
 - Windows 11 x64 target
 - Inno Setup installer and portable ZIP
