@@ -170,3 +170,15 @@ button:active{transform:scale(.975)}
 .popover{transition:opacity .16s ease,transform .16s ease}
 @keyframes airMenuIn{from{opacity:0;transform:translateY(-5px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+
+/* Expanded desktop browser menu: keep every command reachable on shorter screens. */
+#menuPanel{width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 88px);max-height:calc(100dvh - 88px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#49688d #15243a;padding:14px}
+#menuPanel>.menu-heading{font-size:12px;padding:9px 12px 13px}
+#menuPanel>button:not(.icon-button){min-height:42px;padding:11px 12px;font-size:13px}
+#menuPanel>.menu-separator{margin:8px 4px}
+.popover:has(.settings-layout){top:48px;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 60px);max-height:calc(100dvh - 60px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+.settings-layout{min-height:0;grid-template-columns:170px minmax(0,1fr)}
+.settings-nav{position:sticky;top:0;align-self:start;max-height:calc(100dvh - 130px);overflow-y:auto}
+.settings-content{min-width:0}
+@media(max-width:700px){#menuPanel{max-height:calc(100dvh - 76px)}.popover:has(.settings-layout){top:42px;max-height:calc(100dvh - 50px)}.settings-layout{grid-template-columns:125px minmax(0,1fr)}.settings-nav{max-height:calc(100dvh - 110px)}}
