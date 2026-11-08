@@ -182,3 +182,7 @@ button:active{transform:scale(.975)}
 .settings-nav{position:sticky;top:0;align-self:start;max-height:calc(100dvh - 130px);overflow-y:auto}
 .settings-content{min-width:0}
 @media(max-width:700px){#menuPanel{max-height:calc(100dvh - 76px)}.popover:has(.settings-layout){top:42px;max-height:calc(100dvh - 50px)}.settings-layout{grid-template-columns:125px minmax(0,1fr)}.settings-nav{max-height:calc(100dvh - 110px)}}
+
+
+/* Bookmarks strip: shown only on the AIR new-tab page when enabled. */
+.bookmarks-bar{height:34px;min-height:34px;display:flex;align-items:center;gap:7px;padding:0 13px;background:#101d30;border-bottom:1px solid #263c57;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;white-space:nowrap}.bookmarks-bar.hidden{display:none}.bookmarks-bar-label{font-size:10px;font-weight:750;letter-spacing:.5px;color:#829bb8;margin-right:5px}.bookmark-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 10px;border:1px solid #344e6c;border-radius:7px;background:#1a2d46;color:#dceaff;font-size:11px;cursor:pointer}.bookmark-chip:hover{background:#28517b;border-color:#568bc2}.bookmarks-empty{font-size:10px;color:#829bb8}body.light .bookmarks-bar{background:#e8f0fa;border-color:#c5d5e8}body.light .bookmark-chip{background:#f7faff;color:#24415f;border-color:#c5d5e8}body.light .bookmarks-empty{color:#637c98}
