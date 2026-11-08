@@ -149,7 +149,7 @@ public sealed class MainForm : Form
             string Get(string key)=>m.TryGetProperty(key,out var v)?v.GetString()??"": "";
             switch(type){
                 case "ready": PushState();if(!_startupInitialized){_startupInitialized=true;await RestoreOrStartAsync(_pendingInitialUrl);}break;
-                case "settingsChanged": if(m.TryGetProperty("settings",out var profileSettings))SaveProfileSettings(profileSettings);break;
+                case "settingsChanged": if(m.TryGetProperty("settings",out var profileSettings)){SaveProfileSettings(profileSettings);if(AutomaticUpdatesEnabled())_updateTimer.Start();else _updateTimer.Stop();}break;
                 case "saveStartBackground": SaveStartBackground(Get("dataUrl"));break;
                 case "removeStartBackground": try{if(File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);SetStatus("Start-page picture removed");Send("toast",new{value="Start-page picture removed"});}catch(Exception ex){SetStatus("Could not remove picture: "+ex.Message);}break;
                 case "windowMinimize": WindowState=FormWindowState.Minimized;break;
