@@ -160,3 +160,13 @@ button:active{transform:scale(.975)}
 @keyframes airTabEnter{from{opacity:0;transform:translateY(5px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes airPanelEnter{from{opacity:0;transform:translateY(-7px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+
+/* AIR Browser context menus and smooth motion */
+#tabContextMenu{position:fixed;z-index:1000;min-width:190px;box-shadow:0 18px 48px #0008;animation:airMenuIn .14s ease-out}
+#tabContextMenu button{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:10px 13px;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:8px}
+#tabContextMenu button:hover{background:rgba(91,158,232,.18)}
+.tab{transition:background .18s ease,border-color .18s ease,transform .18s ease,opacity .18s ease}
+.popover{transition:opacity .16s ease,transform .16s ease}
+@keyframes airMenuIn{from{opacity:0;transform:translateY(-5px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
