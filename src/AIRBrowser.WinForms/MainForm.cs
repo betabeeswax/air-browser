@@ -155,7 +155,7 @@ public sealed class MainForm : Form
                 case "dragWindow": if(WindowState!=FormWindowState.Maximized){ReleaseCapture();SendMessage(Handle,0x00A1,(IntPtr)2,IntPtr.Zero);}break;
                 case "managePasswords": ManagePasswords();break;
                 case "syncExport": ExportSyncData();break;
-                case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))ImportSyncData(syncPayload);break;
+                case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))await ImportSyncDataAsync(syncPayload);break;
                 case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
                 case "newTab": await AddTabAsync();break;
                 case "select": Select(Get("id"));break;
@@ -304,12 +304,13 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             }
             var settings = File.Exists(ProfileSettingsFile) ? JsonDocument.Parse(File.ReadAllText(ProfileSettingsFile)).RootElement.Clone() : JsonDocument.Parse("{}").RootElement.Clone();
             var background = File.Exists(StartBackgroundFile) ? File.ReadAllText(StartBackgroundFile) : "";
-            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json"), settings, startBackground = background });
+            var openTabs = _tabs.Select(t => t.View.CoreWebView2?.Source ?? "").Where(u => Uri.TryCreate(u, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https")).ToList();
+            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json"), settings, startBackground = background, openTabs });
         }
         catch (Exception ex) { SetStatus("Could not prepare AIR Sync data: " + ex.Message); }
     }
 
-    private void ImportSyncData(JsonElement payload)
+    private async Task ImportSyncDataAsync(JsonElement payload)
     {
         try
         {
@@ -323,6 +324,14 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             }
             if(payload.TryGetProperty("settings",out var settings)&&settings.ValueKind==JsonValueKind.Object)File.WriteAllText(ProfileSettingsFile,settings.GetRawText());
             if(payload.TryGetProperty("startBackground",out var bg)&&bg.ValueKind==JsonValueKind.String){var value=bg.GetString()??"";if(value.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&value.Length<6*1024*1024)File.WriteAllText(StartBackgroundFile,value);else if(value.Length==0&&File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);}
+            if(payload.TryGetProperty("openTabs",out var syncedTabs)&&syncedTabs.ValueKind==JsonValueKind.Array)
+            {
+                var urls=syncedTabs.EnumerateArray().Where(x=>x.ValueKind==JsonValueKind.String).Select(x=>x.GetString()??"").Where(u=>Uri.TryCreate(u,UriKind.Absolute,out var uri)&&(uri.Scheme=="http"||uri.Scheme=="https")).Take(30).ToList();
+                foreach(var tab in _tabs.ToArray()){_browserPanel.Controls.Remove(tab.View);tab.View.Dispose();}
+                _tabs.Clear();_active=null;
+                if(urls.Count>0){foreach(var url in urls)await AddTabAsync(url);}else await AddTabAsync();
+                SaveSession();
+            }
             SetStatus("AIR Sync profile restored");
             Send("toast", new { value = "This profile was restored from AIR Sync." });PushState();
         }
@@ -450,7 +459,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private string BuildStartHtml(){var fallback="radial-gradient(ellipse at 50% 12%,#183b68 0,#0d1a2d 42%,#080e19 80%)";try{if(File.Exists(StartBackgroundFile)){var image=File.ReadAllText(StartBackgroundFile);if(image.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&image.Length<5*1024*1024)return StartHtml.Replace("__AIR_START_BACKGROUND__", "url('"+image+"') center/cover fixed, "+fallback);}}catch{}return StartHtml.Replace("__AIR_START_BACKGROUND__",fallback);}
     private void CreateProfile(string name){name=name.Trim();if(name.Length==0||name.Length>32||name.Any(char.IsControl)){SetStatus("Choose a profile name up to 32 characters");return;}if(_profiles.Contains(name,StringComparer.OrdinalIgnoreCase)){SetStatus("That profile already exists");return;}_profiles.Add(name);SaveProfiles();SwitchProfile(name);SetStatus("Created profile: "+name);}
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
-    private void SwitchProfile(string name){if(!_profiles.Contains(name)||name==_profile)return;_profile=name;foreach(var t in _tabs){_browserPanel.Controls.Remove(t.View);t.View.Dispose();}_tabs.Clear();_active=null;_ = AddTabAsync();SetStatus("Profile: "+name);}
+    private void SwitchProfile(string name){if(!_profiles.Contains(name)||name==_profile)return;SaveSession();_profile=name;foreach(var t in _tabs){_browserPanel.Controls.Remove(t.View);t.View.Dispose();}_tabs.Clear();_active=null;_ = AddTabAsync();SetStatus("Profile: "+name);}
     private void RecordHistory(string url){if(string.IsNullOrWhiteSpace(url)||!Uri.TryCreate(url,UriKind.Absolute,out var u)||u.Scheme is not ("http" or "https"))return;try{Directory.CreateDirectory(ProfileFolder);var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();list.Add(url);if(list.Count>500)list=list.TakeLast(500).ToList();File.WriteAllText(file,JsonSerializer.Serialize(list));}catch{}}
     private void StartAutomaticUpdates()
     {
