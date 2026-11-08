@@ -120,7 +120,8 @@ public sealed class MainForm : Form
         var exe=Path.Combine(_runtime,"msedgewebview2.exe");
         if(!File.Exists(exe))throw new FileNotFoundException("AIR Browser's bundled WebView2 engine is missing.",exe);
         var data=Path.Combine(_root,"WebView2",Safe(name));Directory.CreateDirectory(data);
-        var env=await CoreWebView2Environment.CreateAsync(_runtime,data);
+        var options=new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = true };
+        var env=await CoreWebView2Environment.CreateAsync(_runtime,data,options);
         _environments[name]=env;return env;
     }
 
@@ -161,6 +162,11 @@ public sealed class MainForm : Form
                 case "newTab": await AddTabAsync();break;
                 case "select": Select(Get("id"));break;
                 case "close": Close(Get("id"));break;
+                case "closeOthers": CloseOtherTabs(Get("id"));break;
+                case "closeRight": CloseTabsToRight(Get("id"));break;
+                case "readingMode": ToggleReadingMode();break;
+                case "installExtension": await InstallExtensionAsync();break;
+                case "quietChat": await AddTabAsync("https://quietchat-rho.vercel.app");break;
                 case "navigate": _engine=Get("engine");Navigate(Get("value"));break;
                 case "back": if(_active?.View.CoreWebView2?.CanGoBack==true)_active.View.CoreWebView2.GoBack();break;
                 case "forward": if(_active?.View.CoreWebView2?.CanGoForward==true)_active.View.CoreWebView2.GoForward();break;
@@ -237,7 +243,7 @@ public sealed class MainForm : Form
 
     private const string StartHtml = @"<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>New tab</title><style>
 *{box-sizing:border-box}body{margin:0;background:__AIR_START_BACKGROUND__;color:#eef5ff;font:16px Segoe UI,Arial;min-height:100vh;display:flex;justify-content:center}.page{width:min(900px,90%);padding:9vh 20px 40px;text-align:center}.logo{margin:auto;width:70px;height:70px;border-radius:22px;background:linear-gradient(145deg,#3694ff,#114c9c);display:grid;place-items:center;font-size:43px;font-weight:800;box-shadow:0 14px 35px #0005}.brand{font-size:33px;letter-spacing:9px;margin:14px 0 5px}.tag{color:#9db5d3;margin:0 0 30px}.search{display:flex;gap:8px;max-width:650px;margin:0 auto 34px;padding:7px;background:#f4f7fc;border-radius:16px;box-shadow:0 10px 40px #0005}.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#172b45;padding:8px 13px;font:15px Segoe UI}.search button{border:0;border-radius:11px;background:#1768d6;color:white;padding:0 20px;font:14px Segoe UI;cursor:pointer}.label{max-width:650px;margin:0 auto 12px;text-align:left;color:#9db5d3;font-size:12px}.links{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:650px;margin:auto}.link{padding:17px 8px;background:#172943;border:1px solid #2a4565;border-radius:14px;color:#edf5ff;text-decoration:none}.link:hover{background:#23436a}.ico{display:grid;place-items:center;margin:0 auto 9px;width:38px;height:38px;border-radius:12px;background:#234c7c;font-size:20px}.link small{display:block;color:#9bb2d0;font-size:11px;margin-top:4px}@media(max-width:550px){.links{grid-template-columns:repeat(2,1fr)}.page{padding-top:6vh}}
-</style></head><body><main class='page'><div class='logo'>A</div><div class='brand'>AIR</div><p class='tag'>A clearer space for everything you do online.</p><form class='search' action='https://www.bing.com/search' method='get'><input name='q' placeholder='Search the web with Bing' autofocus><button>Search</button></form><div class='label'>QUICK LINKS</div><div class='links'><a class='link' href='https://www.bing.com'><span class='ico'>⌕</span>Bing<small>Search the web</small></a><a class='link' href='https://www.youtube.com'><span class='ico'>▶</span>YouTube<small>Watch videos</small></a><a class='link' href='https://www.google.com'><span class='ico'>G</span>Google<small>Explore the web</small></a><a class='link' href='https://www.wikipedia.org'><span class='ico'>W</span>Wikipedia<small>Learn something</small></a></div></main></body></html>";
+</style></head><body><main class='page'><div class='logo'>A</div><div class='brand'>AIR</div><p class='tag'>A clearer space for everything you do online.</p><form class='search' action='https://www.bing.com/search' method='get'><input name='q' placeholder='Search the web with Bing' autofocus><button>Search</button></form><div class='label'>QUICK LINKS</div><div class='links'><a class='link' href='https://www.bing.com'><span class='ico'>⌕</span>Bing<small>Search the web</small></a><a class='link' href='https://www.youtube.com'><span class='ico'>▶</span>YouTube<small>Watch videos</small></a><a class='link' href='https://www.google.com'><span class='ico'>G</span>Google<small>Explore the web</small></a><a class='link' href='https://www.wikipedia.org'><span class='ico'>W</span>Wikipedia<small>Learn something</small></a><a class='link' href='https://quietchat-rho.vercel.app'><span class='ico'>Q</span>QuietChat<small>Open your chats</small></a></div></main></body></html>";
 
     private const string DinoHtml = """
 <!doctype html>
@@ -287,6 +293,10 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     }
     private void Select(string id){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;Select(t);}
     private void Select(TabEntry t){_active=t;foreach(var x in _tabs)x.View.Visible=x==t;if(t.View.Parent is not null)t.View.BringToFront();Text=(t.Title=="New tab"?"AIR Browser":t.Title+" - AIR Browser");PushState();}
+    private void CloseOtherTabs(string keepId){var keep=_tabs.FirstOrDefault(x=>x.Id==keepId);if(keep is null)return;foreach(var t in _tabs.Where(x=>x!=keep).ToArray()){_tabs.Remove(t);_browserPanel.Controls.Remove(t.View);t.View.Dispose();}Select(keep.Id);SaveSession();PushState();}
+    private void CloseTabsToRight(string id){var index=_tabs.FindIndex(x=>x.Id==id);if(index<0)return;foreach(var t in _tabs.Skip(index+1).ToArray()){_tabs.Remove(t);_browserPanel.Controls.Remove(t.View);t.View.Dispose();}if(_active is null||!_tabs.Contains(_active))Select(_tabs[Math.Min(index,_tabs.Count-1)].Id);SaveSession();PushState();}
+    private void ToggleReadingMode(){if(_active?.View.CoreWebView2 is not { } web)return;const string script=@"(()=>{const id='air-reading-mode-style';const old=document.getElementById(id);if(old){old.remove();document.documentElement.classList.remove('air-reading-mode');return 'Reading mode off'}const style=document.createElement('style');style.id=id;style.textContent='html.air-reading-mode body{background:#f5f0e6!important;color:#242424!important;font-family:Georgia,serif!important}html.air-reading-mode body *{font-family:Georgia,serif!important;line-height:1.75!important}html.air-reading-mode body :is(header,nav,footer,aside,[role=navigation],[role=banner],.advert,.ads,.sidebar){display:none!important}html.air-reading-mode body :is(article,main,[role=main]){display:block!important;max-width:780px!important;margin:40px auto!important;padding:36px!important;background:#fffdf8!important;color:#242424!important;border-radius:14px!important;box-shadow:0 8px 40px #0001!important}html.air-reading-mode body img{max-width:100%!important;height:auto!important}html.air-reading-mode body a{color:#1559a6!important}';document.head.appendChild(style);document.documentElement.classList.add('air-reading-mode');return 'Reading mode on'})()";_ = web.ExecuteScriptAsync(script);SetStatus("Reading mode toggled");}
+    private async Task InstallExtensionAsync(){if(_active?.View.CoreWebView2 is not { } web){SetStatus("Open a tab first");return;}using var dialog=new FolderBrowserDialog{Description="Choose an unpacked browser extension folder containing manifest.json"};if(dialog.ShowDialog(this)!=DialogResult.OK)return;try{var extension=await web.Profile.AddBrowserExtensionAsync(dialog.SelectedPath);SetStatus("Extension installed: "+extension.Name);Send("toast",new{value="Extension installed: "+extension.Name});}catch(Exception ex){MessageBox.Show(this,"AIR could not install this extension. Choose an extracted extension folder that contains manifest.json.\n\n"+ex.Message,"AIR Extensions",MessageBoxButtons.OK,MessageBoxIcon.Warning);}}
     private void Close(string id){var t=_tabs.FirstOrDefault(x=>x.Id==id);if(t is null)return;var index=_tabs.IndexOf(t);_tabs.Remove(t);_browserPanel.Controls.Remove(t.View);t.View.Dispose();if(_active==t){_active=null;if(_tabs.Count>0)Select(_tabs[Math.Clamp(index-1,0,_tabs.Count-1)]);else _=AddTabAsync();}SaveSession();PushState();}
     private void CreateGroup(string name){name=name.Trim();if(name.Length==0)return;if(!_groups.Contains(name,StringComparer.OrdinalIgnoreCase))_groups.Add(name);if(_active is not null)_active.Group=name;SetStatus("Created "+name);PushState();}
     private void GroupTabs(string source,string target){var a=_tabs.FirstOrDefault(t=>t.Id==source);var b=_tabs.FirstOrDefault(t=>t.Id==target);if(a is null||b is null||a==b)return;var group=b.Group!="Ungrouped"?b.Group:a.Group!="Ungrouped"?a.Group:"Group "+(_groups.Count);if(!_groups.Contains(group))_groups.Add(group);a.Group=group;b.Group=group;_tabs.Remove(a);var targetIndex=_tabs.IndexOf(b);_tabs.Insert(targetIndex+1,a);SetStatus("Tabs grouped together");PushState();}
@@ -463,20 +473,30 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
     private void DeleteProfile(string name){if(name=="Personal"||!_profiles.Contains(name))return;_profiles.Remove(name);try{var folder=Path.Combine(_root,"WebView2",Safe(name));if(Directory.Exists(folder))Directory.Delete(folder,true);var profile=Path.Combine(_root,"Profiles",Safe(name));if(Directory.Exists(profile))Directory.Delete(profile,true);}catch{}SaveProfiles();if(_profile==name)SwitchProfile("Personal");else PushState();SetStatus("Deleted profile: "+name);}
     private void SwitchProfile(string name){if(!_profiles.Contains(name)||name==_profile)return;SaveSession();_profile=name;foreach(var t in _tabs){_browserPanel.Controls.Remove(t.View);t.View.Dispose();}_tabs.Clear();_active=null;_ = AddTabAsync();SetStatus("Profile: "+name);}
     private void RecordHistory(string url){if(string.IsNullOrWhiteSpace(url)||!Uri.TryCreate(url,UriKind.Absolute,out var u)||u.Scheme is not ("http" or "https"))return;try{Directory.CreateDirectory(ProfileFolder);var file=Path.Combine(ProfileFolder,"history.json");var list=File.Exists(file)?JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file))??new():new List<string>();list.Add(url);if(list.Count>500)list=list.TakeLast(500).ToList();File.WriteAllText(file,JsonSerializer.Serialize(list));}catch{}}
+    private bool AutomaticUpdatesEnabled(){try{if(!File.Exists(ProfileSettingsFile))return true;using var doc=JsonDocument.Parse(File.ReadAllText(ProfileSettingsFile));return !doc.RootElement.TryGetProperty("automaticUpdates",out var value)||value.ValueKind!=JsonValueKind.False;}catch{return true;}}
     private void StartAutomaticUpdates()
     {
-        _updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync();
-        _updateTimer.Start();
+        _updateTimer.Tick += async (_, _) => { if(AutomaticUpdatesEnabled()) await CheckForUpdatesAsync(); };
+        if(AutomaticUpdatesEnabled())_updateTimer.Start();
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(20));
-            if (!IsDisposed && IsHandleCreated)
+            if (!IsDisposed && IsHandleCreated && AutomaticUpdatesEnabled())
                 BeginInvoke(new Action(async () => await CheckForUpdatesAsync()));
         });
     }
 
+    private bool AskUpdateNowOrLater(int build)
+    {
+        using var prompt=new Form{Text="AIR Browser update available",Size=new Size(460,190),FormBorderStyle=FormBorderStyle.FixedDialog,StartPosition=FormStartPosition.CenterParent,MaximizeBox=false,MinimizeBox=false,ShowInTaskbar=false,BackColor=Color.FromArgb(15,25,40),ForeColor=Color.White};
+        var message=new Label{Text=$"AIR Browser build {build} is ready.\n\nWould you like to update now or later? Your browser data will be kept.",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleCenter,Padding=new Padding(18),ForeColor=Color.White};
+        var buttons=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=54,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(10),BackColor=Color.FromArgb(15,25,40)};
+        var later=new Button{Text="Later",Width=110,Height=30,DialogResult=DialogResult.No};var now=new Button{Text="Update now",Width=120,Height=30,DialogResult=DialogResult.Yes};buttons.Controls.Add(later);buttons.Controls.Add(now);prompt.Controls.Add(message);prompt.Controls.Add(buttons);prompt.AcceptButton=now;prompt.CancelButton=later;return prompt.ShowDialog(this)==DialogResult.Yes;
+    }
+
     private async Task CheckForUpdatesAsync(bool manual = false)
     {
+        if (!manual && !AutomaticUpdatesEnabled()) return;
         if (_updateCheckRunning || IsDisposed) { if (manual) SetStatus("An update check is already running…"); return; }
         _updateCheckRunning = true;
         try
@@ -529,13 +549,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             // Remember a declined build for this app session so the automatic checker does not
             // keep showing the same prompt every six hours.
             if (!manual && _declinedUpdateBuild == latestBuild) return;
-            var decision = MessageBox.Show(
-                this,
-                $"AIR Browser build {latestBuild} is available.\n\nWould you like to download and install it now? Your browser profiles and saved data will be kept.",
-                "AIR Browser update available",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
-            if (decision != DialogResult.Yes)
+            if (!AskUpdateNowOrLater(latestBuild))
             {
                 _declinedUpdateBuild = latestBuild;
                 SetStatus("Update postponed");
