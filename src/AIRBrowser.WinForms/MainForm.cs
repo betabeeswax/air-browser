@@ -527,7 +527,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             // Never download or install an update until the user explicitly approves it.
             // Remember a declined build for this app session so the automatic checker does not
             // keep showing the same prompt every six hours.
-            if (_declinedUpdateBuild == latestBuild) return;
+            if (!manual && _declinedUpdateBuild == latestBuild) return;
             var decision = MessageBox.Show(
                 this,
                 $"AIR Browser build {latestBuild} is available.\n\nWould you like to download and install it now? Your browser profiles and saved data will be kept.",
