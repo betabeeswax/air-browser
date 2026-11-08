@@ -32,11 +32,18 @@ Downloads: https://github.com/betabeeswax/air-browser/releases
 - Profile-specific bookmarks and browsing history
 - Native AIR start page concept
 
-## Planned modules
+## Current browser features
 
-AIR account sync, Microsoft/Google provider integrations, encrypted password sync, tab groups and cross-device group sync, configurable weather and other widgets, profile management, theme editor, richer history/bookmark management and privacy controls are planned follow-up work. They are not represented as complete in this first native foundation.
+- Profile-specific bookmarks, history, saved passwords and startup preferences
+- Startup options: new page, chosen startup page, or continue where you left off
+- Manual update checks and optional automatic update checks with an Update now / Later prompt
+- Reading mode for simplified page reading
+- Import bookmarks directly from Edge, Chrome, Brave and Firefox; password CSV import remains separate
+- Unpacked Chromium extension loading through WebView2 (some toolbar popup interfaces are limited by WebView2)
+- QuietChat shortcut to https://quietchat-rho.vercel.app
+- Tab groups, context-menu tab actions and smooth interface transitions
 
-**Security note:** AIR does not ask for or store your Microsoft or Google passwords. Provider sign-in will use official OAuth flows when implemented.
+AIR Account sign-in is optional. Google and Microsoft provider sign-in are not included. Browsing does not require an AIR Account.
 
 
 ## AIR Browser updates and data
@@ -47,6 +54,10 @@ AIR account sync, Microsoft/Google provider integrations, encrypted password syn
 - Uninstalling the app also leaves this browser data folder in place. Remove it manually only if you want to erase your data.
 - The portable build stores its data in an `AIR-Browser-Data` folder beside the portable app. Keep that folder when moving or updating the portable app; deleting it deletes that portable profile.
 
+
+## Android app
+
+The Android app is maintained separately at https://github.com/betabeeswax/air-browser-android. It has its own APK release workflow, update checks with an Update now / Later prompt, a setting to enable or disable automatic checks, reading mode and a QuietChat shortcut. Android WebView does not provide the same Chrome extension installation APIs as desktop WebView2.
 
 ## Bundled browser engine
 
