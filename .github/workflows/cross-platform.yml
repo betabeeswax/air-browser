@@ -1,4 +1,4 @@
-name: Build and Release AIR Browser for Windows, Linux and macOS
+name: Build and Release AIR Browser for Windows, Linux and macOS (combined)
 
 on:
   push:
