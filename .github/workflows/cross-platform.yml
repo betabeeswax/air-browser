@@ -187,4 +187,4 @@ jobs:
             The Electron edition is a separate app from the native Windows edition. Initial macOS builds are not code-signed or notarized.
             Built from commit ${{ github.sha }}.
           files: release-files/*
-          make_latest: false
+          make_latest: true
