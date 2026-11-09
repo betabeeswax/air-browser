@@ -1,10 +1,16 @@
-name: Build AIR Browser for Linux and macOS
+name: Build and Release AIR Browser for Windows, Linux and macOS
 
 on:
   push:
     branches: [main]
     paths:
       - 'cross-platform/**'
+      - 'src/**'
+      - 'installer/**'
+      - 'assets/**'
+      - 'global.json'
+      - 'scripts/**'
+      - 'README.md'
       - '.github/workflows/cross-platform.yml'
   workflow_dispatch:
 
@@ -12,53 +18,154 @@ permissions:
   contents: write
 
 concurrency:
-  group: air-browser-cross-platform
+  group: air-browser-all-platforms
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build ${{ matrix.platform }}
+  electron:
+    name: Build Electron \${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          - platform: windows
+            os: windows-latest
+            command: npx electron-builder --win nsis zip
           - platform: linux
             os: ubuntu-latest
             command: npx electron-builder --linux AppImage deb
           - platform: macos
             os: macos-latest
             command: npx electron-builder --mac dmg zip --x64 --arm64
-    runs-on: ${{ matrix.os }}
+    runs-on: \${{ matrix.os }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: cross-platform/package.json
-
       - name: Install dependencies
         working-directory: cross-platform
         run: npm install --no-audit --no-fund
-
       - name: Build installers
         working-directory: cross-platform
-        run: ${{ matrix.command }}
-
+        run: \${{ matrix.command }}
       - name: Upload platform installers
         uses: actions/upload-artifact@v4
         with:
-          name: air-browser-${{ matrix.platform }}
+          name: electron-\${{ matrix.platform }}
           path: cross-platform/dist/*
           if-no-files-found: error
           retention-days: 14
 
+  native-windows:
+    name: Build native Windows edition
+    runs-on: windows-2022
+    env:
+      AIR_VERSION: 0.2.\${{ github.run_number }}
+      AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+      AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Set up Visual Studio MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Generate AIR Browser app icon
+        shell: pwsh
+        run: ./scripts/create-icon.ps1
+      - name: Restore
+        run: msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
+      - name: Publish native Windows app
+        shell: pwsh
+        run: |
+          $publishDir = (Join-Path $PWD "publish") + [IO.Path]::DirectorySeparatorChar
+          New-Item -ItemType Directory -Force $publishDir | Out-Null
+          msbuild src/AIRBrowser.WinForms/AIRBrowser.WinForms.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true "/p:Version=$env:AIR_VERSION" "/p:PublishDir=$publishDir"
+      - name: Download and verify fixed WebView2 runtime
+        shell: pwsh
+        run: |
+          $version = "156.0.4314.56"
+          $cab = Join-Path $env:RUNNER_TEMP "Microsoft.WebView2.FixedVersionRuntime.$version.x64.cab"
+          $url = "https://github.com/ciderapp/WebView2-Archives/releases/download/$version/Microsoft.WebView2.FixedVersionRuntime.$version.x64.cab"
+          $expectedSha256 = "f37590235285774860146bdece4439532e3574303c0508ae4cf457ea584f125f"
+          Invoke-WebRequest -Uri $url -OutFile $cab
+          $actualSha256 = (Get-FileHash -Path $cab -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) { throw "Fixed WebView2 CAB checksum mismatch." }
+          $fixedRoot = Join-Path $PWD "publish/FixedRuntime"
+          New-Item -ItemType Directory -Force $fixedRoot | Out-Null
+          & expand.exe $cab "-F:*" $fixedRoot
+          if ($LASTEXITCODE -ne 0) { throw "Could not extract the fixed WebView2 runtime CAB." }
+          $runtimeExe = Join-Path $fixedRoot "Microsoft.WebView2.FixedVersionRuntime.$version.x64/msedgewebview2.exe"
+          if (!(Test-Path $runtimeExe)) { throw "The extracted fixed WebView2 runtime is incomplete." }
+          Set-Content -Path (Join-Path $PWD "publish/FixedRuntimeVersion.txt") -Value $version -NoNewline
+      - name: Sign application binaries (when certificate is configured)
+        if: \${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        env:
+          AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
+          $sdkRoot = "$env:ProgramFiles(x86)\Windows Kits\10\bin"
+          $signTool = Get-ChildItem $sdkRoot -Filter signtool.exe -Recurse | Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$signTool) { throw "Windows SDK SignTool was not found." }
+          $files = Get-ChildItem "publish" -Recurse -File | Where-Object { $_.Extension -in ".exe", ".dll" }
+          foreach ($file in $files) {
+            & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certPath /p $env:AIR_SIGNING_CERT_PASSWORD $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed: $($file.FullName)" }
+          }
+          Remove-Item $certPath -Force
+      - name: Package native portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "artifacts/AIR-Browser-Portable" | Out-Null
+          Copy-Item -Path "publish/*" -Destination "artifacts/AIR-Browser-Portable" -Recurse -Force
+          New-Item -ItemType File -Force "artifacts/AIR-Browser-Portable/portable.mode" | Out-Null
+          Compress-Archive -Path "artifacts/AIR-Browser-Portable/*" -DestinationPath "artifacts/AIR-Browser-Portable.zip" -Force
+      - name: Build native Windows installer
+        shell: pwsh
+        run: |
+          $iscc = "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          $iscc = "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe"
+          & $iscc installer/AIRBrowser.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Sign native installer (when certificate is configured)
+        if: \${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        env:
+          AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
+          $sdkRoot = "$env:ProgramFiles(x86)\Windows Kits\10\bin"
+          $signTool = Get-ChildItem $sdkRoot -Filter signtool.exe -Recurse | Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$signTool) { throw "Windows SDK SignTool was not found." }
+          & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certPath /p $env:AIR_SIGNING_CERT_PASSWORD "artifacts/AIR-Browser-Setup.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Installer signing failed." }
+          Remove-Item $certPath -Force
+      - name: Upload native Windows downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-windows
+          path: |
+            artifacts/AIR-Browser-Setup.exe
+            artifacts/AIR-Browser-Portable.zip
+          if-no-files-found: error
+          retention-days: 14
+
   release:
-    name: Publish Linux and macOS downloads
-    needs: build
+    name: Publish all Windows, Linux and macOS editions
+    needs: [electron, native-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -67,17 +174,17 @@ jobs:
         with:
           path: release-files
           merge-multiple: true
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: air-browser-cross-platform-${{ github.run_number }}
-          name: AIR Browser Cross-Platform build ${{ github.run_number }}
+          tag_name: air-browser-all-platforms-\${{ github.run_number }}
+          name: AIR Browser All Platforms build \${{ github.run_number }}
           body: |
-            Separate Electron-based desktop edition for Linux and macOS.
-            Linux: AppImage and Debian package.
-            macOS: Intel and Apple Silicon DMG/ZIP builds.
-            This is a separate app from the native Windows edition. Initial macOS builds are not code-signed or notarized.
-            Built from commit ${{ github.sha }}.
+            Includes both Windows editions:
+            - Native Windows edition: AIR-Browser-Setup.exe and AIR-Browser-Portable.zip. Updates preserve installed browser data.
+            - Electron Windows edition: Windows installer and ZIP.
+            Also includes Linux AppImage and Debian package, plus macOS Intel and Apple Silicon DMG/ZIP builds.
+            The Electron edition is a separate app from the native Windows edition. Initial macOS builds are not code-signed or notarized.
+            Built from commit \${{ github.sha }}.
           files: release-files/*
           make_latest: false
