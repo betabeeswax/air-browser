@@ -14,6 +14,17 @@ Every update to `main` starts a Windows build and publishes a GitHub Release.
 
 Downloads: https://github.com/betabeeswax/air-browser/releases
 
+## Minimum supported operating systems
+
+| AIR Browser app | Minimum supported version | Notes |
+|---|---|---|
+| Windows desktop | Windows 11 (64-bit) | Native Windows edition; includes its WebView2 browser runtime. |
+| Android | Android 8.0 (Oreo, API 26) | Android edition; installed as an APK. |
+| Linux desktop | Ubuntu 22.04 LTS, Debian 12, or Fedora 38 (64-bit) | Separate Electron edition. Other distributions may work if they provide compatible Chromium/Electron system libraries (including glibc 2.28 or newer). |
+| macOS desktop | macOS 13 Ventura or newer | Separate Electron edition; Intel and Apple Silicon builds. |
+
+These are AIR Browser's minimum supported versions, not a promise that every older operating system supported by an underlying framework will work. Keep your operating system updated for security and compatibility.
+
 ## Technology
 
 - C# and .NET 8
