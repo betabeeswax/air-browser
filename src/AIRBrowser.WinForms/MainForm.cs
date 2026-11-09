@@ -161,8 +161,7 @@ public sealed class MainForm : Form
                 case "syncImport": if(m.TryGetProperty("payload",out var syncPayload))await ImportSyncDataAsync(syncPayload);break;
                 case "overlay": _overlayTarget = m.TryGetProperty("expanded", out var expanded) && expanded.GetBoolean() ? 500 : 67; _shellPanel.BringToFront(); _overlayAnimation.Start(); break;
                 case "newTab": await AddTabAsync();break;
-                case "ready": PushBookmarks();break;
-                case "select": Select(Get("id"));break;
+                                case "select": Select(Get("id"));break;
                 case "close": Close(Get("id"));break;
                 case "closeOthers": CloseOtherTabs(Get("id"));break;
                 case "closeRight": CloseTabsToRight(Get("id"));break;
