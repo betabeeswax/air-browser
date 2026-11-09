@@ -4,7 +4,10 @@
   "private": true,
   "description": "Separate Linux and macOS desktop edition of AIR Browser",
   "main": "main.js",
-  "author": "AIR Browser",
+  "author": {
+    "name": "AIR Browser",
+    "email": "betabeeswax@users.noreply.github.com"
+  },
   "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
@@ -40,8 +43,15 @@
         "deb"
       ],
       "category": "Network;WebBrowser;",
-      "synopsis": "AIR Browser desktop edition"
+      "synopsis": "AIR Browser desktop edition",
+      "maintainer": "AIR Browser",
+      "desktop": {
+        "Name": "AIR Browser",
+        "Comment": "AIR Browser desktop edition",
+        "Categories": "Network;WebBrowser;"
+      }
     },
     "publish": null
-  }
+  },
+  "homepage": "https://air-browser.vercel.app"
 }
