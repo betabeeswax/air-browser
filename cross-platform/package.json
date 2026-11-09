@@ -44,12 +44,7 @@
       ],
       "category": "Network;WebBrowser;",
       "synopsis": "AIR Browser desktop edition",
-      "maintainer": "AIR Browser",
-      "desktop": {
-        "Name": "AIR Browser",
-        "Comment": "AIR Browser desktop edition",
-        "Categories": "Network;WebBrowser;"
-      }
+      "maintainer": "AIR Browser"
     },
     "publish": null
   },
