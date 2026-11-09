@@ -107,7 +107,7 @@ async function backupSyncData(data){
   const packed=JSON.stringify({version:1,salt:base64Bytes(salt),iv:base64Bytes(iv),ciphertext:base64Bytes(new Uint8Array(encrypted))});
   const response=await fetch(AIR_AUTH_URL+"/rest/v1/air_sync_profiles?on_conflict=user_id%2Cprofile_key",{method:"POST",headers:{apikey:AIR_AUTH_KEY,Authorization:"Bearer "+creds.session.access_token,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({user_id:creds.session.user.id,profile_key:data.profile,profile_name:data.profile,encrypted_payload:packed,encryption_version:1,updated_at:new Date().toISOString()})});
   if(!response.ok)throw new Error((await response.text()).slice(0,240));
-  showAccountMessage("Encrypted backup saved for "+data.profile+". Your sync passphrase is needed to restore it.");toast("AIR Sync backup complete");
+  showAccountMessage("Encrypted backup saved for "+data.profile+". Bookmarks, history, settings, open tabs and saved passwords are included. Your sync passphrase is needed to restore it.");toast("AIR Sync backup complete");
  }catch(e){showAccountMessage("Backup failed: "+e.message,true)}
 }
 async function restoreSyncData(){
@@ -121,11 +121,11 @@ async function restoreSyncData(){
   const packed=JSON.parse(rows[0].encrypted_payload),salt=fromBase64(packed.salt),iv=fromBase64(packed.iv),cipher=fromBase64(packed.ciphertext);
   const key=await deriveSyncKey(creds.pass,salt),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,cipher),data=JSON.parse(new TextDecoder().decode(plain));
   if(data.profile!==profile)throw new Error("This backup belongs to a different profile.");
-  if(!confirm("Restore the cloud backup for "+profile+"? This replaces this profile's bookmarks, history and open tabs."))return;
+  if(!confirm("Restore the cloud backup for "+profile+"? This replaces this profile's bookmarks, history, saved passwords and open tabs."))return;
   if(data.settings)localStorage.setItem(profileSettingsKey(),JSON.stringify(data.settings));
   if(data.profileMeta)localStorage.setItem("airProfileMeta",JSON.stringify(data.profileMeta));
   if(data.settings)send("settingsChanged",{settings:data.settings});applySettings();send("syncImport",{payload:{bookmarks:data.bookmarks||[],history:data.history||[],settings:data.settings||{},startBackground:data.startBackground||"",openTabs:data.openTabs||[]}});
-  showAccountMessage("Backup decrypted and restored for "+profile+".");
+  showAccountMessage("Backup decrypted and restored for "+profile+", including saved passwords.");
  }catch(e){showAccountMessage("Restore failed. Check your passphrase. "+e.message,true)}
 }
 
