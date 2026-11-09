@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   electron:
-    name: Build Electron \${{ matrix.platform }}
+    name: Build Electron ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +37,7 @@ jobs:
           - platform: macos
             os: macos-latest
             command: npx electron-builder --mac dmg zip --x64 --arm64
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -52,11 +52,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build installers
         working-directory: cross-platform
-        run: \${{ matrix.command }}
+        run: ${{ matrix.command }}
       - name: Upload platform installers
         uses: actions/upload-artifact@v4
         with:
-          name: electron-\${{ matrix.platform }}
+          name: electron-${{ matrix.platform }}
           path: cross-platform/dist/*
           if-no-files-found: error
           retention-days: 14
@@ -65,9 +65,9 @@ jobs:
     name: Build native Windows edition
     runs-on: windows-2022
     env:
-      AIR_VERSION: 0.2.\${{ github.run_number }}
-      AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
-      AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+      AIR_VERSION: 0.2.${{ github.run_number }}
+      AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+      AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -106,11 +106,11 @@ jobs:
           if (!(Test-Path $runtimeExe)) { throw "The extracted fixed WebView2 runtime is incomplete." }
           Set-Content -Path (Join-Path $PWD "publish/FixedRuntimeVersion.txt") -Value $version -NoNewline
       - name: Sign application binaries (when certificate is configured)
-        if: \${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
+        if: ${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
         shell: pwsh
         env:
-          AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
-          AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+          AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
         run: |
           $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
           [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
@@ -139,11 +139,11 @@ jobs:
           & $iscc installer/AIRBrowser.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Sign native installer (when certificate is configured)
-        if: \${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
+        if: ${{ env.AIR_SIGNING_CERT_BASE64 != '' && env.AIR_SIGNING_CERT_PASSWORD != '' }}
         shell: pwsh
         env:
-          AIR_SIGNING_CERT_BASE64: \${{ secrets.AIR_SIGNING_CERT_BASE64 }}
-          AIR_SIGNING_CERT_PASSWORD: \${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
+          AIR_SIGNING_CERT_BASE64: ${{ secrets.AIR_SIGNING_CERT_BASE64 }}
+          AIR_SIGNING_CERT_PASSWORD: ${{ secrets.AIR_SIGNING_CERT_PASSWORD }}
         run: |
           $certPath = Join-Path $env:RUNNER_TEMP "air-signing.pfx"
           [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:AIR_SIGNING_CERT_BASE64))
@@ -177,14 +177,14 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: air-browser-all-platforms-\${{ github.run_number }}
-          name: AIR Browser All Platforms build \${{ github.run_number }}
+          tag_name: air-browser-all-platforms-${{ github.run_number }}
+          name: AIR Browser All Platforms build ${{ github.run_number }}
           body: |
             Includes both Windows editions:
             - Native Windows edition: AIR-Browser-Setup.exe and AIR-Browser-Portable.zip. Updates preserve installed browser data.
             - Electron Windows edition: Windows installer and ZIP.
             Also includes Linux AppImage and Debian package, plus macOS Intel and Apple Silicon DMG/ZIP builds.
             The Electron edition is a separate app from the native Windows edition. Initial macOS builds are not code-signed or notarized.
-            Built from commit \${{ github.sha }}.
+            Built from commit ${{ github.sha }}.
           files: release-files/*
           make_latest: false
