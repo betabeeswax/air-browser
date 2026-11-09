@@ -114,7 +114,7 @@ async function restoreSyncData(){
  const creds=await syncCredentials();if(!creds)return;
  try{
   const profile=window.currentProfile||"Personal";
-  const url=AIR_AUTH_URL+"/rest/v1/air_sync_profiles?select=profile_name,encrypted_payload&profile_key=eq."+encodeURIComponent(profile)+"&limit=1";
+  const url=AIR_AUTH_URL+"/rest/v1/air_sync_profiles?select=profile_name,encrypted_payload&user_id=eq."+encodeURIComponent(creds.session.user.id)+"&profile_key=eq."+encodeURIComponent(profile)+"&limit=1";
   const response=await fetch(url,{headers:{apikey:AIR_AUTH_KEY,Authorization:"Bearer "+creds.session.access_token}});
   if(!response.ok)throw new Error((await response.text()).slice(0,240));
   const rows=await response.json();if(!rows.length){showAccountMessage("No cloud backup exists for this profile yet.",true);return}
