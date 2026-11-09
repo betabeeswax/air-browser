@@ -1,0 +1,47 @@
+{
+  "name": "air-browser-cross-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Separate Linux and macOS desktop edition of AIR Browser",
+  "main": "main.js",
+  "author": "AIR Browser",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.air.browser.desktop",
+    "productName": "AIR Browser",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "app/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network;WebBrowser;",
+      "synopsis": "AIR Browser desktop edition"
+    },
+    "publish": null
+  }
+}
