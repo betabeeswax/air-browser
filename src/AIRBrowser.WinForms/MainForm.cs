@@ -319,7 +319,7 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
             var settings = File.Exists(ProfileSettingsFile) ? JsonDocument.Parse(File.ReadAllText(ProfileSettingsFile)).RootElement.Clone() : JsonDocument.Parse("{}").RootElement.Clone();
             var background = File.Exists(StartBackgroundFile) ? File.ReadAllText(StartBackgroundFile) : "";
             var openTabs = _tabs.Select(t => t.View.CoreWebView2?.Source ?? "").Where(u => Uri.TryCreate(u, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https")).ToList();
-            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json"), settings, startBackground = background, openTabs });
+            Send("syncData", new { profile = _profile, bookmarks = ReadList("bookmarks.json"), history = ReadList("history.json"), passwords = LoadPasswordRecords(), settings, startBackground = background, openTabs });
         }
         catch (Exception ex) { SetStatus("Could not prepare AIR Sync data: " + ex.Message); }
     }
@@ -335,6 +335,13 @@ function clicker(){let count=0;stage.innerHTML='<div><div class="score" id="sc">
                 var values = value.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String)
                     .Select(x => x.GetString() ?? "").Where(x => x.Length < 4096).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 File.WriteAllText(Path.Combine(ProfileFolder, name + ".json"), JsonSerializer.Serialize(values));
+            }
+            if(payload.TryGetProperty("passwords",out var syncedPasswords)&&syncedPasswords.ValueKind==JsonValueKind.Array)
+            {
+                var records=syncedPasswords.Deserialize<List<Dictionary<string,string>>>()??new();
+                records=records.Where(x=>Uri.TryCreate(x.GetValueOrDefault("url"),UriKind.Absolute,out var uri)&&(uri.Scheme=="https"||uri.Scheme=="http")&&!string.IsNullOrWhiteSpace(x.GetValueOrDefault("password"))).Take(2000).ToList();
+                var encrypted=ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(records),null,DataProtectionScope.CurrentUser);
+                File.WriteAllBytes(PasswordVaultFile,encrypted);
             }
             if(payload.TryGetProperty("settings",out var settings)&&settings.ValueKind==JsonValueKind.Object)File.WriteAllText(ProfileSettingsFile,settings.GetRawText());
             if(payload.TryGetProperty("startBackground",out var bg)&&bg.ValueKind==JsonValueKind.String){var value=bg.GetString()??"";if(value.StartsWith("data:image/",StringComparison.OrdinalIgnoreCase)&&value.Length<6*1024*1024)File.WriteAllText(StartBackgroundFile,value);else if(value.Length==0&&File.Exists(StartBackgroundFile))File.Delete(StartBackgroundFile);}
